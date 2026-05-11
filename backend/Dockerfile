@@ -12,4 +12,4 @@ COPY . .
 RUN deno cache src/back_server.ts
 
 # Start the server on port 8081
-CMD ["run", "--allow-net", "--allow-read", "src/back_server.ts", "8081"]
+CMD ["run", "--allow-net", "--allow-read", "--allow-env", "src/back_server.ts", "8081"]
