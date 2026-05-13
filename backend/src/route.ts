@@ -28,7 +28,6 @@ export async function initDb(): Promise<void> {
       CREATE TABLE IF NOT EXISTS users (
         id       SERIAL PRIMARY KEY,
         name     VARCHAR(255) NOT NULL,
-        email    VARCHAR(255) UNIQUE NOT NULL,
         password TEXT NOT NULL
       )
     `);
@@ -41,43 +40,10 @@ export async function initDb(): Promise<void> {
 // ── Router ────────────────────────────────────────────────────────────────────
 export const router = new Router();
 
-/** POST /register  { name, email, password } */
+/** POST /register  { username, password } */
 router.post("/register", async (ctx) => {
   const body = await ctx.request.body.json();
-  const { name, email, password } = body ?? {};
-
-  if (!name || !email || !password) {
-    ctx.response.status = 400;
-    ctx.response.body = { error: "name, email and password are required" };
-    return;
-  }
-
-  const client = await getClient();
-  try {
-    await client.queryArray(
-      "INSERT INTO users (name, email, password) VALUES ($1, $2, $3)",
-      [name, email, password],
-    );
-    ctx.response.status = 201;
-    ctx.response.body = { message: "User created" };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes("unique")) {
-      ctx.response.status = 409;
-      ctx.response.body = { error: "Email already in use" };
-    } else {
-      ctx.response.status = 500;
-      ctx.response.body = { error: msg };
-    }
-  } finally {
-    await client.end();
-  }
-});
-
-/** POST /login  { username (= email), password } */
-router.post("/login", async (ctx) => {
-  const body = await ctx.request.body.json();
-  const { username, password } = body ?? {};
+  const { username, password } = body ?? {}; // On récupère 'username' envoyé par le JS
 
   if (!username || !password) {
     ctx.response.status = 400;
@@ -87,8 +53,31 @@ router.post("/login", async (ctx) => {
 
   const client = await getClient();
   try {
-    const result = await client.queryObject<{ id: number; name: string; email: string; password: string }>(
-      "SELECT * FROM users WHERE email = $1",
+    // On insère uniquement name et password
+    await client.queryArray(
+      "INSERT INTO users (name, password) VALUES ($1, $2)",
+      [username, password],
+    );
+    ctx.response.status = 201;
+    ctx.response.body = { message: "User created" };
+  } catch (e: unknown) {
+    ctx.response.status = 500;
+    ctx.response.body = { error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /login  { username, password } */
+router.post("/login", async (ctx) => {
+  const body = await ctx.request.body.json();
+  const { username, password } = body ?? {};
+
+  const client = await getClient();
+  try {
+    // On cherche par NAME et non plus par EMAIL
+    const result = await client.queryObject<{ id: number; name: string; password: string }>(
+      "SELECT * FROM users WHERE name = $1",
       [username],
     );
 
@@ -99,8 +88,6 @@ router.post("/login", async (ctx) => {
     }
 
     const user = result.rows[0];
-
-    // Plain-text comparison (upgrade to bcrypt when needed)
     if (user.password !== password) {
       ctx.response.status = 401;
       ctx.response.body = { error: "Invalid credentials" };
@@ -108,11 +95,12 @@ router.post("/login", async (ctx) => {
     }
 
     ctx.response.status = 200;
-    ctx.response.body = { message: "Login successful", user: { id: user.id, name: user.name, email: user.email } };
+    ctx.response.body = { message: "Login successful", user: { id: user.id, name: user.name } };
   } finally {
     await client.end();
   }
 });
+
 
 /** GET /health  – used by Docker HEALTHCHECK */
 router.get("/health", (ctx) => {
