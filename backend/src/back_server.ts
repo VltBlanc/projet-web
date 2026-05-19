@@ -42,14 +42,13 @@ await initDb();
 console.log(`Server is listening on ${PORT}`);
 console.log(`CORS allows origin ${ORIGIN}`);
 
+const options: Record<string, unknown> = { port: PORT, hostname: "0.0.0.0" };
+
 if (Deno.args.length >= 3) {
+  options.secure = true;
+  options.cert = await Deno.readTextFile(Deno.args[1]);
+  options.key = await Deno.readTextFile(Deno.args[2]);
   console.log(`SSL conf ready (use https)`);
-  await app.listen({
-    port: PORT,
-    hostname: "0.0.0.0",
-    cert: await Deno.readTextFile(Deno.args[1]),
-    key: await Deno.readTextFile(Deno.args[2]),
-  });
-} else {
-  await app.listen({ port: PORT, hostname: "0.0.0.0" });
 }
+
+await app.listen(options);
