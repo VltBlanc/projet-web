@@ -1,65 +1,91 @@
+// ── ChatClient for standalone chat page ───────────────────────────────────────
 
-// DOM
-let send_message_button = document.getElementById("send");
-let new_message = document.getElementById("new_message");
-let chat_box = document.getElementById("chat_box");
+const currentUser = localStorage.getItem('currentUser') || 'Moi';
 
-// Backend
-const ws = new WebSocket(`ws://localhost:8081/ws`);
+const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHost = location.hostname === 'localhost' ? 'localhost:8081' : `${location.hostname}:8081`;
+const restHost = location.hostname === 'localhost' ? 'http://localhost:8081' : `http://${location.hostname}:8081`;
 
-// Listener
-send_message_button.addEventListener("click", function (event) {
-    event.preventDefault(); // Prevent default form submission
-    // Send
-    const mesEnvoie = {
-        message: new_message.value
-    };
-    ws.send(JSON.stringify(mesEnvoie));
-    new_message.value = ""
+const chat = new ChatClient({
+  wsUrl: `${wsProtocol}//${wsHost}/ws`,
+  restBase: restHost,
+  maxReconnects: 10,
+  reconnectDelay: 1000,
+  historyLimit: 50,
 });
 
-ws.onopen = function () {
-    console.log('WebSocket connection established.');
-};
+// DOM
+const sendForm = document.getElementById('send');
+const newMessage = document.getElementById('new_message');
+const chatBox = document.getElementById('chat_box');
 
-ws.onmessage = function (event) {
-    console.log(`WebSocket received message: ${event.data}.`);
+// ── Message rendering ─────────────────────────────────────────────────────────
 
-    const message = event.data;
-    let data;
-    try {
-        data = JSON.parse(message);
-    } catch {
-        console.error("Malformed WebSocket message received");
-        return;
-    }
+function appendMessage(author, text, createdAt, isOwn) {
+  const div = document.createElement('div');
+  div.className = 'message ' + (isOwn ? 'own' : 'other');
+  let timeStr;
+  if (createdAt) {
+    const d = new Date(createdAt);
+    timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    timeStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+  div.innerHTML = `<div class="msg-author">${escapeHtml(author)}</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeStr}</div>`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 
-    if ("go_to_login" in data) {
-        window.location.href = "login.html"
-    }
-    // --- AFFICHAGE DU MESSAGE ---
-    if (data.message && data.owner) {
-        // 1. Créer un nouvel élément div pour le message
-        const messageDiv = document.createElement("div");
-        messageDiv.className = "message";
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
-        const strong = document.createElement("strong");
-        strong.textContent = `${data.owner} : `;
-        messageDiv.appendChild(strong);
-        messageDiv.appendChild(document.createTextNode(data.message));
+// ── Chat callbacks ────────────────────────────────────────────────────────────
 
-        chat_box.appendChild(messageDiv);
+chat.on('message', (msg) => {
+  const isOwn = msg.owner === currentUser;
+  appendMessage(msg.owner, msg.content, msg.created_at, isOwn);
+});
 
-        chat_box.scrollTop = chat_box.scrollHeight;
-    }
-};
+chat.on('historyLoaded', ({ messages }) => {
+  chatBox.innerHTML = '';
+  for (const msg of messages) {
+    const isOwn = msg.owner === currentUser;
+    appendMessage(msg.owner, msg.content, msg.created_at, isOwn);
+  }
+});
 
-ws.onerror = function (error) {
-    console.error('WebSocket error:', error);
-    window.location.href = "login.html";
-};
+chat.on('error', (errMsg) => {
+  const div = document.createElement('div');
+  div.className = 'message other';
+  div.style.opacity = '0.6';
+  div.style.fontStyle = 'italic';
+  div.textContent = '⚠ ' + errMsg;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+});
 
-ws.onclose = function (event) {
-    console.log('WebSocket connection closed:', event);
-    window.location.href = "login.html";
-};
+// ── Send ──────────────────────────────────────────────────────────────────────
+
+sendForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!newMessage.value.trim()) return;
+  chat.sendMessage(newMessage.value);
+  newMessage.value = '';
+});
+
+// ── Connect & join default room ───────────────────────────────────────────────
+
+chat.connect();
+chat.on('connected', () => {
+  chat.joinRoom('general').catch(err => console.error('joinRoom error:', err));
+});
+
+// ── Reconnection handling ─────────────────────────────────────────────────────
+
+chat.on('reconnect', (attempt) => {
+  chatBox.innerHTML = `<div class="chat-loading">Reconnexion en cours… (tentative ${attempt})</div>`;
+});

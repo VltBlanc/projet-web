@@ -48,6 +48,11 @@ envoyer.addEventListener('click', async () => {
       body: JSON.stringify({ username: user.value, password: mdp.value })
     });
     if (reponse.ok) {
+      const data = await reponse.json();
+      // Store username for chat identification
+      if (data.user && data.user.name) {
+        localStorage.setItem('currentUser', data.user.name);
+      }
       window.location.href = 'main.html';
     } else {
       const errorData = await reponse.json();
