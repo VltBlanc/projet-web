@@ -13,12 +13,13 @@ const ACCESS_EXPIRY = "15m";
 const REFRESH_EXPIRY = "7d";
 
 // ── Database connection ───────────────────────────────────────────────────────
-const DB_HOST = Deno.env.get("DB_HOST") ?? "db";
+const DB_HOST = Deno.env.get("DB_HOST") ?? "localhost";
 const DB_PASSWORD = Deno.env.get("DB_PASSWORD") ?? "password";
 const DB_USER = Deno.env.get("DB_USER") ?? "user";
 const DB_NAME = Deno.env.get("DB_NAME") ?? "projet_web";
 
 async function getClient(): Promise<Client> {
+  console.log(`Connecting to DB at ${DB_HOST}:5432 (user=${DB_USER}, db=${DB_NAME})`);
   const client = new Client({
     hostname: DB_HOST,
     port: 5432,
@@ -139,7 +140,7 @@ async function setAccessCookie(ctx: Context, token: string) {
   ctx.cookies.set("access_token", token, {
     httpOnly: true,
     secure: false, // localhost dev
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: 15 * 60, // 15 minutes in seconds
   });
@@ -149,7 +150,7 @@ async function setRefreshCookie(ctx: Context, token: string) {
   ctx.cookies.set("refresh_token", token, {
     httpOnly: true,
     secure: false,
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60, // 7 days
   });

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportConnect – Accueil</title>
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M2 12h20"></path>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+      </div>
+      <span class="brand-text">SportConnect</span>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="feed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        <span>Accueil</span>
+      </button>
+      <button class="nav-item" data-section="events">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>Événements</span>
+      </button>
+      <button class="nav-item" data-section="chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <span>Messages</span>
+      </button>
+      <button class="nav-item" data-section="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <span>Profil</span>
+      </button>
+    </nav>
+    <button class="logout-btn" id="logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      <span>Déconnexion</span>
+    </button>
+  </aside>
+
+  <!-- Mobile header -->
+  <header class="mobile-header">
+    <button class="menu-toggle" id="menu-toggle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+    <span class="mobile-title">SportConnect</span>
+    <div class="mobile-avatar">SC</div>
+  </header>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Feed section -->
+    <section id="feed" class="content-section active">
+      <div class="page-header">
+        <h2>Fil d'actualité</h2>
+        <p>Découvre les dernières activités de la communauté</p>
+      </div>
+      <div class="feed-grid" id="feed-grid">
+        <!-- Feed items inserted by JS -->
+      </div>
+    </section>
+
+    <!-- Events section -->
+    <section id="events" class="content-section">
+      <div class="page-header">
+        <h2>Événements sportifs</h2>
+        <p>Rejoins ou crée une séance près de chez toi</p>
+      </div>
+      <div class="events-toolbar">
+        <input type="text" id="event-search" placeholder="Rechercher un sport, une ville...">
+        <button class="btn-primary" id="btn-create-event">+ Créer un événement</button>
+      </div>
+      <div class="events-grid" id="events-grid">
+        <!-- Events inserted by JS -->
+      </div>
+    </section>
+
+    <!-- Chat section -->
+    <section id="chat" class="content-section">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <h3>Conversations</h3>
+          <div class="chat-rooms" id="chat-rooms">
+            <div class="room-item active" data-room="general">
+              <div class="room-avatar">G</div>
+              <div class="room-info">
+                <span class="room-name">Général</span>
+                <span class="room-preview">Discussions libres</span>
+              </div>
+            </div>
+            <div class="room-item" data-room="football">
+              <div class="room-avatar">F</div>
+              <div class="room-info">
+                <span class="room-name">Football</span>
+                <span class="room-preview">Trouve des partenaires</span>
+              </div>
+            </div>
+            <div class="room-item" data-room="running">
+              <div class="room-avatar">R</div>
+              <div class="room-info">
+                <span class="room-name">Running</span>
+                <span class="room-preview">Sorties groupées</span>
+              </div>
+            </div>
+            <div class="room-item" data-room="musculation">
+              <div class="room-avatar">M</div>
+              <div class="room-info">
+                <span class="room-name">Musculation</span>
+                <span class="room-preview">Conseils & entraide</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-header">
+            <span class="chat-title" id="chat-title">Général</span>
+            <span class="chat-status">● En ligne</span>
+          </div>
+          <div id="chat-box" class="chat-box"></div>
+          <form id="send" class="chat-input-row">
+            <input type="text" id="new_message" class="new_message" placeholder="Écris ton message..." autocomplete="off">
+            <button type="submit" class="send-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile section -->
+    <section id="profile" class="content-section">
+      <div class="profile-card">
+        <div class="profile-banner"></div>
+        <div class="profile-body">
+          <div class="profile-avatar-large">SC</div>
+          <h2 id="profile-username">Utilisateur</h2>
+          <p class="profile-bio">Passionné de sport et de rencontres. Rejoins-moi pour une session !</p>
+          <div class="profile-stats">
+            <div class="stat">
+              <span class="stat-value">12</span>
+              <span class="stat-label">Événements</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">48</span>
+              <span class="stat-label">Messages</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">5</span>
+              <span class="stat-label">Sports</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
