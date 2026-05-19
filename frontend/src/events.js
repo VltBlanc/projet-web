@@ -264,11 +264,13 @@ function initCreateEventModal() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const dateVal = form.querySelector('#ev-date').value;
+    const timeVal = form.querySelector('#ev-time').value;
     const data = {
       title: form.querySelector('#ev-title').value.trim(),
       sport: form.querySelector('#ev-sport').value.trim(),
       location: form.querySelector('#ev-location').value.trim(),
-      event_date: form.querySelector('#ev-date').value,
+      event_date: dateVal && timeVal ? `${dateVal}T${timeVal}` : '',
       capacity: Number(form.querySelector('#ev-capacity').value),
     };
 
