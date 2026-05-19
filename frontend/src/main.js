@@ -161,6 +161,89 @@ if (eventSearch) {
 }
 // btn-create-event is handled by events.js
 
+// ── Categories demo data & logic ──
+const categoriesData = [
+  { id: "football", name: "Football", icon: "⚽" },
+  { id: "basket", name: "Basket", icon: "🏀" },
+  { id: "running", name: "Running", icon: "🏃" },
+  { id: "tennis", name: "Tennis", icon: "🎾" },
+  { id: "musculation", name: "Musculation", icon: "💪" },
+  { id: "yoga", name: "Yoga", icon: "🧘" },
+  { id: "escalade", name: "Escalade", icon: "🧗" },
+  { id: "cyclisme", name: "Cyclisme", icon: "🚴" },
+];
+
+const categoriesGrid = document.getElementById("categories-grid");
+const categoryDetail = document.getElementById("category-detail");
+const categoriesMain = document.getElementById("categories-main");
+const btnBackCategories = document.getElementById("btn-back-categories");
+const categoryDetailTitle = document.getElementById("category-detail-title");
+const categoryEventsGrid = document.getElementById("category-events-grid");
+
+function renderCategories() {
+  if (!categoriesGrid) return;
+  categoriesGrid.innerHTML = "";
+  categoriesData.forEach((cat) => {
+    // Count events for this category
+    const count = eventsData.filter(e => e.sport.toLowerCase() === cat.name.toLowerCase()).length;
+    const card = document.createElement("div");
+    card.className = "category-card";
+    card.innerHTML = `
+      <div class="category-icon">${cat.icon}</div>
+      <div class="category-title">${cat.name}</div>
+      <div class="category-count">${count} activité${count !== 1 ? 's' : ''}</div>
+    `;
+    card.addEventListener("click", () => showCategoryDetail(cat.name));
+    categoriesGrid.appendChild(card);
+  });
+}
+
+function showCategoryDetail(categoryName) {
+  if (categoriesMain) categoriesMain.style.display = "none";
+  if (categoryDetail) categoryDetail.style.display = "block";
+  if (categoryDetailTitle) categoryDetailTitle.textContent = categoryName;
+  
+  if (!categoryEventsGrid) return;
+  categoryEventsGrid.innerHTML = "";
+  const catEvents = eventsData.filter(e => e.sport.toLowerCase() === categoryName.toLowerCase());
+  
+  if (catEvents.length === 0) {
+    categoryEventsGrid.innerHTML = "<p style='color:var(--text-muted); grid-column:1/-1;'>Aucune activité trouvée pour cette catégorie.</p>";
+    return;
+  }
+  
+  catEvents.forEach((ev) => {
+    const pct = (ev.spots / ev.capacity) * 100;
+    const div = document.createElement("div");
+    div.className = "event-card";
+    div.innerHTML = `<div class="event-header"><span class="event-sport">${ev.sport}</span><span class="event-date">${ev.date}</span></div>
+    <div class="event-title">${ev.title}</div>
+    <div class="event-location">📍 ${ev.location}</div>
+    <div class="event-bar"><div style="width:${pct}%"></div></div>
+    <div class="event-footer"><span class="event-spots">${ev.spots}/${ev.capacity} inscrits</span><button class="event-btn ${ev.spots >= ev.capacity ? "full" : ""}">${ev.spots >= ev.capacity ? "Complet" : "Rejoindre"}</button></div>`;
+    categoryEventsGrid.appendChild(div);
+  });
+}
+
+if (btnBackCategories) {
+  btnBackCategories.addEventListener("click", () => {
+    if (categoryDetail) categoryDetail.style.display = "none";
+    if (categoriesMain) categoriesMain.style.display = "block";
+  });
+}
+
+renderCategories();
+
+// Add hook when clicking nav items to reset categories view
+navItems.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.section === "categories" && categoriesMain && categoryDetail) {
+       categoriesMain.style.display = "block";
+       categoryDetail.style.display = "none";
+    }
+  });
+});
+
 const chatRoomsContainer = document.getElementById("chat-rooms");
 const chatTitle = document.getElementById("chat-title");
 const chatBox = document.getElementById("chat-box");
