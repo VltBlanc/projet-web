@@ -647,6 +647,18 @@ function broadcastToRoom(room: string, data: unknown) {
   }
 }
 
+function broadcastUsernames() {
+  const generalRoom = roomClients.get("general");
+  if (!generalRoom) return;
+
+  const usernames = Array.from(generalRoom)
+    .map((client) => client.user?.name)
+    .filter(Boolean);
+
+  // Send the "update-users" event using the tutorial's structure
+  broadcastToRoom("general", { event: "update-users", usernames });
+}
+
 function sendTo(ws: WsClient, data: unknown) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(data));
@@ -699,6 +711,9 @@ router.get("/ws", async (ctx) => {
     generalRoom.add(ws);
     ws.rooms!.add("general");
     console.log(`${payload.name} auto-joined general`);
+    
+    // Broadcast the updated users list
+    broadcastUsernames();
   };
 
   ws.onmessage = async (event) => {
@@ -791,6 +806,7 @@ router.get("/ws", async (ctx) => {
   ws.onclose = () => {
     removeFromAllRooms(ws);
     console.log(`WS client disconnected: ${payload.name}`);
+    broadcastUsernames();
   };
 
   ws.onerror = (err) => {

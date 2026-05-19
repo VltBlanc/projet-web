@@ -37,6 +37,7 @@ class ChatClient {
       error: [],          // (message) => void
       reconnect: [],      // (attempt) => void
       data_updated: [],   // () => void
+      update_users: [],   // (usernames) => void
     };
   }
 
@@ -199,6 +200,9 @@ class ChatClient {
         break;
       case 'data_updated':
         this._emit('data_updated');
+        break;
+      case 'update-users':
+        this._emit('update_users', data.usernames);
         break;
       default:
         // Ignore unknown message types for forward compatibility

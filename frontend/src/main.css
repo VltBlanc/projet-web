@@ -164,6 +164,18 @@ body{
 .chat-title{ font-weight:700; }
 .chat-status{ font-size:0.8rem; color:var(--primary); font-weight:600; }
 
+.chat-users-sidebar{
+  width:200px; background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:1rem; display:flex; flex-direction:column;
+}
+.chat-users-sidebar h3{ font-size:0.9rem; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.05em; margin-bottom:0.75rem; }
+.users-online-list{ list-style:none; overflow-y:auto; flex:1; }
+.users-online-list li{
+  display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0; font-size:0.9rem; font-weight:600; color:var(--text); border-bottom:1px solid var(--border);
+}
+.users-online-list li:last-child{ border-bottom:none; }
+.users-online-list li::before{ content:''; display:inline-block; width:8px; height:8px; background:var(--primary); border-radius:50%; }
+
 /* Chat box (same id as before for compatibility) */
 #chat-box{
   flex:1; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:0.6rem;

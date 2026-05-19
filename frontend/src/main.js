@@ -366,6 +366,17 @@ chat.on("data_updated", () => {
   }
 });
 
+chat.on("update_users", (usernames) => {
+  const list = document.getElementById("users-online");
+  if (!list) return;
+  list.innerHTML = "";
+  for (const username of usernames) {
+    const li = document.createElement("li");
+    li.textContent = username;
+    list.appendChild(li);
+  }
+});
+
 // ── Chat connection ───────────────────────────────────────────────────────────
 
 chat.connect();
