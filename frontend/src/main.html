@@ -93,27 +93,7 @@
                 <span class="room-preview">Discussions libres</span>
               </div>
             </div>
-            <div class="room-item" data-room="football">
-              <div class="room-avatar">F</div>
-              <div class="room-info">
-                <span class="room-name">Football</span>
-                <span class="room-preview">Trouve des partenaires</span>
-              </div>
-            </div>
-            <div class="room-item" data-room="running">
-              <div class="room-avatar">R</div>
-              <div class="room-info">
-                <span class="room-name">Running</span>
-                <span class="room-preview">Sorties groupées</span>
-              </div>
-            </div>
-            <div class="room-item" data-room="musculation">
-              <div class="room-avatar">M</div>
-              <div class="room-info">
-                <span class="room-name">Musculation</span>
-                <span class="room-preview">Conseils & entraide</span>
-              </div>
-            </div>
+            <!-- Event chat rooms are loaded dynamically by events.js -->
           </div>
         </div>
         <div class="chat-main">
@@ -159,6 +139,57 @@
     </section>
   </main>
 
+  <!-- Create Event Modal -->
+  <div class="modal-overlay" id="create-event-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Créer un événement</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <form id="create-event-form" class="modal-body">
+        <div class="form-group">
+          <label for="ev-title">Titre</label>
+          <input type="text" id="ev-title" placeholder="Ex: Match de foot 5v5" required>
+        </div>
+        <div class="form-group">
+          <label for="ev-sport">Sport</label>
+          <input type="text" id="ev-sport" list="sports-list" placeholder="Ex: Football" required>
+          <datalist id="sports-list">
+            <option value="Football">
+            <option value="Basket">
+            <option value="Running">
+            <option value="Tennis">
+            <option value="Musculation">
+            <option value="Yoga">
+            <option value="Escalade">
+            <option value="Cyclisme">
+            <option value="Natation">
+            <option value="Badminton">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label for="ev-location">Lieu</label>
+          <input type="text" id="ev-location" placeholder="Ex: Stade Municipal, Lyon" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ev-date">Date et heure</label>
+            <input type="datetime-local" id="ev-date" required>
+          </div>
+          <div class="form-group">
+            <label for="ev-capacity">Capacité</label>
+            <input type="number" id="ev-capacity" min="2" max="500" value="10" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="modal-cancel">Annuler</button>
+          <button type="submit" class="btn-primary">Créer l'événement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="events.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
