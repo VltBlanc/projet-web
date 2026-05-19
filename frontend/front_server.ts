@@ -21,14 +21,17 @@ if (Deno.args.length < 1) {
   Deno.exit();
 }
 
-const options = { port: Deno.args[0] }
+const PORT = Number(Deno.args[0]);
+
+console.log(`Oak static server running on port ${PORT} for the files in ${ROOT}`);
 
 if (Deno.args.length >= 3) {
-  options.secure = true
-  options.cert = await Deno.readTextFile(Deno.args[1])
-  options.key = await Deno.readTextFile(Deno.args[2])
   console.log(`SSL conf ready (use https)`);
+  await app.listen({
+    port: PORT,
+    cert: await Deno.readTextFile(Deno.args[1]),
+    key: await Deno.readTextFile(Deno.args[2]),
+  });
+} else {
+  await app.listen({ port: PORT });
 }
-
-console.log(`Oak static server running on port ${options.port} for the files in ${ROOT}`);
-await app.listen(options);

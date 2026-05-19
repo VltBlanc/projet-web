@@ -21,11 +21,14 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - REFRESH_SECRET=${REFRESH_SECRET}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:8080}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+            test: ["CMD", "deno", "eval", "Deno.connect({port: 8081})"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
     depends_on:
       db:
           condition: service_healthy

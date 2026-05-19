@@ -1,3 +1,9 @@
 .env
 .dockerignore
 .vscode
+node_modules
+deno.json
+deno.lock
+backend/node_modules
+backend/deno.json
+backend/deno.lock

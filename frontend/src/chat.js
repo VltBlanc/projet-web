@@ -5,7 +5,7 @@ let new_message = document.getElementById("new_message");
 let chat_box = document.getElementById("chat_box");
 
 // Backend
-const ws = new WebSocket(`ws://localhost:8081`);
+const ws = new WebSocket(`ws://localhost:8081/ws`);
 
 // Listener
 send_message_button.addEventListener("click", function (event) {
@@ -26,7 +26,13 @@ ws.onmessage = function (event) {
     console.log(`WebSocket received message: ${event.data}.`);
 
     const message = event.data;
-    const data = JSON.parse(message);
+    let data;
+    try {
+        data = JSON.parse(message);
+    } catch {
+        console.error("Malformed WebSocket message received");
+        return;
+    }
 
     if ("go_to_login" in data) {
         window.location.href = "login.html"
@@ -37,7 +43,10 @@ ws.onmessage = function (event) {
         const messageDiv = document.createElement("div");
         messageDiv.className = "message";
 
-        messageDiv.innerHTML = `<strong>${data.owner} :</strong> ${data.message}`;
+        const strong = document.createElement("strong");
+        strong.textContent = `${data.owner} : `;
+        messageDiv.appendChild(strong);
+        messageDiv.appendChild(document.createTextNode(data.message));
 
         chat_box.appendChild(messageDiv);
 
