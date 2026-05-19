@@ -201,41 +201,6 @@ async function createEvent(formData) {
   }
 }
 
-// ── Chat Rooms Sidebar ──
-async function loadChatRooms() {
-  const chatRoomsContainer = document.getElementById('chat-rooms');
-  if (!chatRoomsContainer) return;
-
-  try {
-    const res = await apiFetch('/my-chat-rooms');
-    if (!res) return;
-    const rooms = await res.json();
-
-    // Keep the "Général" room, clear the rest
-    const generalRoom = chatRoomsContainer.querySelector('[data-room="general"]');
-    chatRoomsContainer.innerHTML = '';
-    if (generalRoom) chatRoomsContainer.appendChild(generalRoom);
-
-    // Add event chat rooms
-    rooms.forEach(room => {
-      const existing = chatRoomsContainer.querySelector(`[data-room="event-${room.id}"]`);
-      if (existing) return;
-
-      const div = document.createElement('div');
-      div.className = 'room-item';
-      div.setAttribute('data-room', `event-${room.id}`);
-      div.innerHTML = `
-        <div class="room-avatar">${escapeHtml(room.name.charAt(0).toUpperCase())}</div>
-        <div class="room-info">
-          <span class="room-name">${escapeHtml(room.name)}</span>
-          <span class="room-preview">${room.member_count} membre${room.member_count > 1 ? 's' : ''}</span>
-        </div>`;
-      chatRoomsContainer.appendChild(div);
-    });
-  } catch (err) {
-    console.error('Failed to load chat rooms:', err);
-  }
-}
 
 // ── Create Event Modal ──
 function initCreateEventModal() {
@@ -330,7 +295,9 @@ async function refreshAll() {
   await Promise.all([fetchAllEvents(), fetchMyEvents()]);
   renderFeedGrid();
   renderEventsGrid(document.getElementById('event-search')?.value || '');
-  loadChatRooms();
+  if (window.loadRooms) {
+    window.loadRooms();
+  }
 }
 
 // ── Init ──

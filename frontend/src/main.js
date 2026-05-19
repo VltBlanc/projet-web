@@ -161,24 +161,9 @@ if (eventSearch) {
 }
 // btn-create-event is handled by events.js
 
-// ── Chat rooms (event delegation for dynamic rooms) ──
 const chatRoomsContainer = document.getElementById("chat-rooms");
 const chatTitle = document.getElementById("chat-title");
 const chatBox = document.getElementById("chat-box");
-
-if (chatRoomsContainer) {
-  chatRoomsContainer.addEventListener("click", (e) => {
-    const roomItem = e.target.closest(".room-item");
-    if (!roomItem) return;
-    chatRoomsContainer
-      .querySelectorAll(".room-item")
-      .forEach((x) => x.classList.remove("active"));
-    roomItem.classList.add("active");
-    const nameEl = roomItem.querySelector(".room-name");
-    chatTitle.textContent = nameEl ? nameEl.textContent : roomItem.dataset.room;
-    chatBox.innerHTML = "";
-  });
-}
 
 // ── WebSocket Chat ──
 const sendForm = document.getElementById("send");
@@ -356,6 +341,7 @@ async function loadRooms() {
 
 // Load rooms on startup
 loadRooms();
+window.loadRooms = loadRooms;
 
 // Refresh room list when a message arrives (to update preview & order)
 chat.on("message", () => {

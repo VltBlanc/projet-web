@@ -52,11 +52,15 @@ export async function initDb(): Promise<void> {
     await client.queryArray(`
       CREATE TABLE IF NOT EXISTS rooms (
         id         SERIAL PRIMARY KEY,
-        name       VARCHAR(255) NOT NULL UNIQUE,
+        name       VARCHAR(255) NOT NULL,
         slug       VARCHAR(255) NOT NULL UNIQUE,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    // Drop constraints and old tables if they exist from before
+    await client.queryArray("ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_name_key CASCADE");
+    await client.queryArray("DROP TABLE IF EXISTS chat_room_members CASCADE");
+    await client.queryArray("DROP TABLE IF EXISTS chat_rooms CASCADE");
     await client.queryArray(`
       CREATE TABLE IF NOT EXISTS messages (
         id         SERIAL PRIMARY KEY,
@@ -97,23 +101,7 @@ export async function initDb(): Promise<void> {
         UNIQUE(event_id, user_id)
       )
     `);
-    await client.queryArray(`
-      CREATE TABLE IF NOT EXISTS chat_rooms (
-        id         SERIAL PRIMARY KEY,
-        event_id   INTEGER REFERENCES events(id) ON DELETE CASCADE UNIQUE,
-        name       VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await client.queryArray(`
-      CREATE TABLE IF NOT EXISTS chat_room_members (
-        id        SERIAL PRIMARY KEY,
-        room_id   INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
-        user_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        joined_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(room_id, user_id)
-      )
-    `);
+
 
     // Seed default messaging rooms
     const rooms = [
@@ -512,6 +500,7 @@ router.get("/rooms", authMiddleware, async (ctx) => {
     return;
   }
   try {
+    const userId = Number(ctx.state.user.sub);
     const result = await client.queryObject<{
       id: number;
       name: string;
@@ -530,7 +519,12 @@ router.get("/rooms", authMiddleware, async (ctx) => {
          ORDER BY m.id DESC
          LIMIT 1
        ) lm ON true
-       ORDER BY last_message_at DESC NULLS LAST`
+       WHERE r.slug NOT LIKE 'event-%' 
+          OR r.slug IN (
+            SELECT 'event-' || event_id FROM event_participants WHERE user_id = $1
+          )
+       ORDER BY last_message_at DESC NULLS LAST`,
+       [userId]
     );
     ctx.response.status = 200;
     ctx.response.body = result.rows;
@@ -870,14 +864,10 @@ router.post("/events", authMiddleware, async (ctx) => {
       [eventId, userId]
     );
 
-    // Create chat room for this event
-    const roomResult = await client.queryObject<{ id: number }>(
-      "INSERT INTO chat_rooms (event_id, name) VALUES ($1, $2) RETURNING id",
-      [eventId, title]
-    );
+    // Create chat room for this event in the main rooms table
     await client.queryArray(
-      "INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [roomResult.rows[0].id, userId]
+      "INSERT INTO rooms (name, slug) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [title, `event-${eventId}`]
     );
 
     ctx.response.status = 201;
@@ -927,27 +917,8 @@ router.post("/events/:id/join", authMiddleware, async (ctx) => {
       [eventId, userId]
     );
 
-    // Create chat room if it doesn't exist, then add user
-    let roomResult = await client.queryObject<{ id: number }>(
-      "SELECT id FROM chat_rooms WHERE event_id = $1", [eventId]
-    );
-    let roomId: number;
-    if (roomResult.rows.length === 0) {
-      const newRoom = await client.queryObject<{ id: number }>(
-        "INSERT INTO chat_rooms (event_id, name) VALUES ($1, $2) RETURNING id",
-        [eventId, ev.rows[0].title]
-      );
-      roomId = newRoom.rows[0].id;
-    } else {
-      roomId = roomResult.rows[0].id;
-    }
-    await client.queryArray(
-      "INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [roomId, userId]
-    );
-
     ctx.response.status = 200;
-    ctx.response.body = { message: "Joined event", room_id: roomId };
+    ctx.response.body = { message: "Joined event" };
   } catch (err) {
     console.error("POST /events/:id/join error:", err);
     ctx.response.status = 500;
@@ -973,16 +944,7 @@ router.post("/events/:id/leave", authMiddleware, async (ctx) => {
       "DELETE FROM event_participants WHERE event_id = $1 AND user_id = $2",
       [eventId, userId]
     );
-    // Remove from associated chat room
-    const room = await client.queryObject<{ id: number }>(
-      "SELECT id FROM chat_rooms WHERE event_id = $1", [eventId]
-    );
-    if (room.rows.length > 0) {
-      await client.queryArray(
-        "DELETE FROM chat_room_members WHERE room_id = $1 AND user_id = $2",
-        [room.rows[0].id, userId]
-      );
-    }
+
     ctx.response.status = 200;
     ctx.response.body = { message: "Left event" };
   } catch (err) {
@@ -1017,30 +979,4 @@ router.get("/my-events", authMiddleware, async (ctx) => {
   }
 });
 
-/** GET /my-chat-rooms — get chat rooms the current user is in (auth required) */
-router.get("/my-chat-rooms", authMiddleware, async (ctx) => {
-  const userId = Number(ctx.state.user.sub);
-  let client: Client;
-  try { client = await getClient(); } catch {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-    return;
-  }
-  try {
-    const result = await client.queryObject(`
-      SELECT cr.id, cr.name, cr.event_id,
-        (SELECT COUNT(*)::int FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count
-      FROM chat_rooms cr
-      INNER JOIN chat_room_members crm ON crm.room_id = cr.id
-      WHERE crm.user_id = $1
-      ORDER BY cr.created_at DESC
-    `, [userId]);
-    ctx.response.body = result.rows;
-  } catch (err) {
-    console.error("GET /my-chat-rooms error:", err);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  } finally {
-    await client.end();
-  }
-});
+
