@@ -36,6 +36,7 @@ class ChatClient {
       left: [],           // (roomSlug) => void
       error: [],          // (message) => void
       reconnect: [],      // (attempt) => void
+      data_updated: [],   // () => void
     };
   }
 
@@ -196,6 +197,9 @@ class ChatClient {
         console.error('ChatClient server error:', data.message);
         this._emit('error', data.message);
         break;
+      case 'data_updated':
+        this._emit('data_updated');
+        break;
       default:
         // Ignore unknown message types for forward compatibility
     }
@@ -203,24 +207,19 @@ class ChatClient {
 
   // ── Room management ───────────────────────────────────────────────────────
 
-  /**
-   * Join a room, leave previous one, and load history.
-   * @param {string} roomSlug — e.g. "general", "football"
-   */
   async joinRoom(roomSlug) {
-    // Leave current room first
-    if (this.currentRoom && this.currentRoom !== roomSlug) {
-      this._send({ type: 'leave_room', room: this.currentRoom });
-    }
-
     this.currentRoom = roomSlug;
-
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this._send({ type: 'join_room', room: roomSlug });
-    }
 
     // Load history
     await this.loadHistory(roomSlug);
+  }
+
+  joinChannel(roomSlug) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this._send({ type: 'join_room', room: roomSlug });
+    } else {
+      this._send({ type: 'join_room', room: roomSlug }); // will be buffered
+    }
   }
 
   /**

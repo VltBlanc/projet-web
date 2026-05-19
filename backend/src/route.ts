@@ -872,6 +872,9 @@ router.post("/events", authMiddleware, async (ctx) => {
 
     ctx.response.status = 201;
     ctx.response.body = { message: "Event created", id: eventId };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
   } catch (err) {
     console.error("POST /events error:", err);
     ctx.response.status = 500;
@@ -919,6 +922,9 @@ router.post("/events/:id/join", authMiddleware, async (ctx) => {
 
     ctx.response.status = 200;
     ctx.response.body = { message: "Joined event" };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
   } catch (err) {
     console.error("POST /events/:id/join error:", err);
     ctx.response.status = 500;
@@ -947,6 +953,9 @@ router.post("/events/:id/leave", authMiddleware, async (ctx) => {
 
     ctx.response.status = 200;
     ctx.response.body = { message: "Left event" };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
   } catch (err) {
     console.error("POST /events/:id/leave error:", err);
     ctx.response.status = 500;

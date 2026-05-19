@@ -289,6 +289,9 @@ async function loadRooms() {
   const rooms = await chat.fetchRooms();
   if (!rooms || rooms.length === 0) return;
 
+  // Ensure we are joined to ALL rooms on the WS layer so we receive live updates
+  rooms.forEach(r => chat.joinChannel(r.slug));
+
   // If current room isn't in the list anymore, reset to first
   const exists = rooms.some((r) => r.slug === currentRoomSlug);
   if (!exists && rooms.length > 0) {
@@ -351,6 +354,15 @@ chat.on("message", () => {
       chat._roomsReloadTimer = null;
       loadRooms();
     }, 2000);
+  }
+});
+
+// Refresh all data when the server says there was an update
+chat.on("data_updated", () => {
+  if (window.refreshAll) {
+    window.refreshAll();
+  } else {
+    loadRooms();
   }
 });
 

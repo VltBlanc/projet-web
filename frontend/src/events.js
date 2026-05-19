@@ -299,6 +299,7 @@ async function refreshAll() {
     window.loadRooms();
   }
 }
+window.refreshAll = refreshAll;
 
 // ── Init ──
 async function initEvents() {
