@@ -48,7 +48,7 @@ export async function initDb(): Promise<void> {
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS refresh_token TEXT
     `);
-    // Rooms & Messages
+    // ── Messaging system ─────────────────────────────────────────────────
     await client.queryArray(`
       CREATE TABLE IF NOT EXISTS rooms (
         id         SERIAL PRIMARY KEY,
@@ -73,7 +73,49 @@ export async function initDb(): Promise<void> {
     await client.queryArray(`
       CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)
     `);
-    // Seed default rooms
+
+    // ── Events system ───────────────────────────────────────────────────
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS events (
+        id          SERIAL PRIMARY KEY,
+        title       VARCHAR(255) NOT NULL,
+        sport       VARCHAR(100) NOT NULL,
+        location    VARCHAR(255) NOT NULL,
+        event_date  TIMESTAMP NOT NULL,
+        capacity    INTEGER NOT NULL DEFAULT 10,
+        creator_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        is_automatic BOOLEAN DEFAULT FALSE,
+        created_at  TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS event_participants (
+        id        SERIAL PRIMARY KEY,
+        event_id  INTEGER REFERENCES events(id) ON DELETE CASCADE,
+        user_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        joined_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(event_id, user_id)
+      )
+    `);
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS chat_rooms (
+        id         SERIAL PRIMARY KEY,
+        event_id   INTEGER REFERENCES events(id) ON DELETE CASCADE UNIQUE,
+        name       VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS chat_room_members (
+        id        SERIAL PRIMARY KEY,
+        room_id   INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+        user_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        joined_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(room_id, user_id)
+      )
+    `);
+
+    // Seed default messaging rooms
     const rooms = [
       ["Général", "general"],
       ["Football", "football"],
@@ -85,6 +127,34 @@ export async function initDb(): Promise<void> {
         `INSERT INTO rooms (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING`,
         [name, slug],
       );
+    }
+
+    // Seed automatic events if the events table is empty
+    const countResult = await client.queryObject<{ count: string }>(
+      "SELECT COUNT(*) as count FROM events"
+    );
+    if (Number(countResult.rows[0].count) === 0) {
+      console.log("Seeding automatic events...");
+      const seeds = [
+        { title: "Match de foot 5v5", sport: "Football", location: "Stade Municipal, Lyon", days: 0, hours: 18, capacity: 10 },
+        { title: "Sortie running 10km", sport: "Running", location: "Parc de la Tête d'Or", days: 1, hours: 7, capacity: 12 },
+        { title: "Session musculation", sport: "Musculation", location: "Basic-Fit Villeurbanne", days: 2, hours: 19, capacity: 6 },
+        { title: "Tennis en double", sport: "Tennis", location: "Club de Tennis, Caluire", days: 3, hours: 17, capacity: 4 },
+        { title: "Tournoi inter-quartiers", sport: "Football", location: "Stade de Gerland, Lyon", days: 5, hours: 14, capacity: 12 },
+        { title: "Pick-up game du weekend", sport: "Basket", location: "Gymnase Tony Parker", days: 6, hours: 10, capacity: 10 },
+        { title: "Trail des monts du Lyonnais", sport: "Running", location: "Saint-Priest", days: 12, hours: 8, capacity: 100 },
+        { title: "Yoga en plein air", sport: "Yoga", location: "Parc de la Tête d'Or", days: 7, hours: 9, capacity: 15 },
+        { title: "Initiation bloc", sport: "Escalade", location: "Salle d'escalade L'Orange Bleue", days: 8, hours: 18, capacity: 8 },
+        { title: "Sortie vélo route 80km", sport: "Cyclisme", location: "Place Bellecour", days: 10, hours: 7, capacity: 20 },
+      ];
+      for (const s of seeds) {
+        await client.queryArray(
+          `INSERT INTO events (title, sport, location, event_date, capacity, is_automatic)
+           VALUES ($1, $2, $3, NOW() + INTERVAL '${s.days} days' + INTERVAL '${s.hours} hours', $4, TRUE)`,
+          [s.title, s.sport, s.location, s.capacity]
+        );
+      }
+      console.log("Seeded", seeds.length, "automatic events.");
     }
     console.log("DB schema ready.");
   } finally {
@@ -733,4 +803,244 @@ router.get("/ws", async (ctx) => {
     console.error("WS error:", err);
     removeFromAllRooms(ws);
   };
+});
+
+// ── Event Routes ──────────────────────────────────────────────────────────────
+
+/** GET /events — list all events with participant count */
+router.get("/events", async (ctx) => {
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const result = await client.queryObject(`
+      SELECT e.*,
+        (SELECT COUNT(*)::int FROM event_participants ep WHERE ep.event_id = e.id) AS participants_count,
+        COALESCE(u.name, 'Système') AS creator_name
+      FROM events e
+      LEFT JOIN users u ON e.creator_id = u.id
+      ORDER BY e.event_date ASC
+    `);
+    ctx.response.body = result.rows;
+  } catch (err) {
+    console.error("GET /events error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /events — create event (auth required) */
+router.post("/events", authMiddleware, async (ctx) => {
+  let body: Record<string, unknown> | undefined;
+  try { body = await ctx.request.body.json(); } catch {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Invalid JSON body" };
+    return;
+  }
+  const { title, sport, location, event_date, capacity } = body ?? {};
+  if (!title || !sport || !location || !event_date || !capacity) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "title, sport, location, event_date, capacity are required" };
+    return;
+  }
+
+  const userId = Number(ctx.state.user.sub);
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const result = await client.queryObject<{ id: number }>(
+      `INSERT INTO events (title, sport, location, event_date, capacity, creator_id, is_automatic)
+       VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING id`,
+      [title, sport, location, event_date, capacity, userId]
+    );
+    const eventId = result.rows[0].id;
+
+    // Auto-join the creator
+    await client.queryArray(
+      "INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [eventId, userId]
+    );
+
+    // Create chat room for this event
+    const roomResult = await client.queryObject<{ id: number }>(
+      "INSERT INTO chat_rooms (event_id, name) VALUES ($1, $2) RETURNING id",
+      [eventId, title]
+    );
+    await client.queryArray(
+      "INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [roomResult.rows[0].id, userId]
+    );
+
+    ctx.response.status = 201;
+    ctx.response.body = { message: "Event created", id: eventId };
+  } catch (err) {
+    console.error("POST /events error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /events/:id/join — join event + create/join chat room (auth required) */
+router.post("/events/:id/join", authMiddleware, async (ctx) => {
+  const eventId = Number(ctx.params.id);
+  const userId = Number(ctx.state.user.sub);
+
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    // Check event exists and has space
+    const ev = await client.queryObject<{ id: number; title: string; capacity: number }>(
+      "SELECT id, title, capacity FROM events WHERE id = $1", [eventId]
+    );
+    if (ev.rows.length === 0) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Event not found" };
+      return;
+    }
+    const pCount = await client.queryObject<{ count: number }>(
+      "SELECT COUNT(*)::int AS count FROM event_participants WHERE event_id = $1", [eventId]
+    );
+    if (pCount.rows[0].count >= ev.rows[0].capacity) {
+      ctx.response.status = 400;
+      ctx.response.body = { error: "Event is full" };
+      return;
+    }
+
+    // Join the event
+    await client.queryArray(
+      "INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [eventId, userId]
+    );
+
+    // Create chat room if it doesn't exist, then add user
+    let roomResult = await client.queryObject<{ id: number }>(
+      "SELECT id FROM chat_rooms WHERE event_id = $1", [eventId]
+    );
+    let roomId: number;
+    if (roomResult.rows.length === 0) {
+      const newRoom = await client.queryObject<{ id: number }>(
+        "INSERT INTO chat_rooms (event_id, name) VALUES ($1, $2) RETURNING id",
+        [eventId, ev.rows[0].title]
+      );
+      roomId = newRoom.rows[0].id;
+    } else {
+      roomId = roomResult.rows[0].id;
+    }
+    await client.queryArray(
+      "INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [roomId, userId]
+    );
+
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Joined event", room_id: roomId };
+  } catch (err) {
+    console.error("POST /events/:id/join error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /events/:id/leave — leave event + leave chat room (auth required) */
+router.post("/events/:id/leave", authMiddleware, async (ctx) => {
+  const eventId = Number(ctx.params.id);
+  const userId = Number(ctx.state.user.sub);
+
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    await client.queryArray(
+      "DELETE FROM event_participants WHERE event_id = $1 AND user_id = $2",
+      [eventId, userId]
+    );
+    // Remove from associated chat room
+    const room = await client.queryObject<{ id: number }>(
+      "SELECT id FROM chat_rooms WHERE event_id = $1", [eventId]
+    );
+    if (room.rows.length > 0) {
+      await client.queryArray(
+        "DELETE FROM chat_room_members WHERE room_id = $1 AND user_id = $2",
+        [room.rows[0].id, userId]
+      );
+    }
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Left event" };
+  } catch (err) {
+    console.error("POST /events/:id/leave error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** GET /my-events — get IDs of events the current user joined (auth required) */
+router.get("/my-events", authMiddleware, async (ctx) => {
+  const userId = Number(ctx.state.user.sub);
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const result = await client.queryObject<{ event_id: number }>(
+      "SELECT event_id FROM event_participants WHERE user_id = $1", [userId]
+    );
+    ctx.response.body = result.rows.map((r) => r.event_id);
+  } catch (err) {
+    console.error("GET /my-events error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** GET /my-chat-rooms — get chat rooms the current user is in (auth required) */
+router.get("/my-chat-rooms", authMiddleware, async (ctx) => {
+  const userId = Number(ctx.state.user.sub);
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const result = await client.queryObject(`
+      SELECT cr.id, cr.name, cr.event_id,
+        (SELECT COUNT(*)::int FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count
+      FROM chat_rooms cr
+      INNER JOIN chat_room_members crm ON crm.room_id = cr.id
+      WHERE crm.user_id = $1
+      ORDER BY cr.created_at DESC
+    `, [userId]);
+    ctx.response.body = result.rows;
+  } catch (err) {
+    console.error("GET /my-chat-rooms error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
 });
