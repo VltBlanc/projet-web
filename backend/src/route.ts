@@ -655,8 +655,8 @@ function broadcastUsernames() {
     .map((client) => client.user?.name)
     .filter(Boolean);
 
-  // Send the "update-users" event using the tutorial's structure
-  broadcastToRoom("general", { event: "update-users", usernames });
+  // Send the "update_users" event using our existing 'type' structure
+  broadcastToRoom("general", { type: "update_users", usernames });
 }
 
 function sendTo(ws: WsClient, data: unknown) {

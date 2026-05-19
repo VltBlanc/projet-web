@@ -201,7 +201,7 @@ class ChatClient {
       case 'data_updated':
         this._emit('data_updated');
         break;
-      case 'update-users':
+      case 'update_users':
         this._emit('update_users', data.usernames);
         break;
       default:
