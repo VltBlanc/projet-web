@@ -1,25 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title> Login </title>
-    <link rel="stylesheet" href="style.css">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportConnect – Connexion</title>
+  <link rel="stylesheet" href="login.css">
 </head>
-
 <body>
-    <div class="login-container">
-        <h1> Login </h1>
-        <div>
-            <input id="username"> username </input>
-            <br>
-            <input id="mdp"> password </input>
-        </div>
-        <br>
-        <button id="send"> envoyer </button>
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M2 12h20"></path>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+      </div>
+      <h1>SportConnect</h1>
+      <p>Rencontre, discute et organise tes séances sportives</p>
     </div>
-    <script src="script.js"></script>
-</body>
 
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="login">Connexion</button>
+      <button class="tab-btn" data-tab="register">Inscription</button>
+    </div>
+
+    <div id="msg-error" class="error-msg"></div>
+    <div id="msg-success" class="success-msg"></div>
+
+    <!-- Login Form -->
+    <div id="login" class="form-section active">
+      <div class="input-group">
+        <label for="username">Nom d'utilisateur</label>
+        <input type="text" id="username" placeholder="Votre pseudo" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label for="mdp">Mot de passe</label>
+        <input type="password" id="mdp" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button id="send" class="submit-btn">Se connecter</button>
+    </div>
+
+    <!-- Register Form -->
+    <div id="register" class="form-section">
+      <div class="input-group">
+        <label for="usernameR">Nom d'utilisateur</label>
+        <input type="text" id="usernameR" placeholder="Choisissez un pseudo" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label for="mdpR">Mot de passe</label>
+        <input type="password" id="mdpR" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button id="sendR" class="submit-btn">Créer mon compte</button>
+    </div>
+
+    <div class="divider"><span>ou</span></div>
+    <p style="text-align:center; color:#6b7280; font-size:0.85rem;">
+      En continuant, vous acceptez nos conditions d'utilisation.
+    </p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
 </html>
