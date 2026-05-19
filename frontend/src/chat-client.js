@@ -23,7 +23,8 @@ class ChatClient {
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
     this.currentRoom = null;
-    this._pendingMessages = [];  // buffered messages sent before WS is open
+    this._pendingMessages = [];          // buffered messages sent before WS is open
+    this._optimisticCounters = new Map(); // dedup: hash → count for optimistic renders
 
     // Callback registry
     this._callbacks = {
@@ -115,6 +116,7 @@ class ChatClient {
 
   disconnect() {
     this._clearReconnect();
+    this._pendingMessages = [];  // clear buffer so stale messages aren't re-sent
     if (this.ws) {
       this.ws.onclose = null; // prevent reconnect
       this.ws.close();
@@ -126,6 +128,7 @@ class ChatClient {
     if (this.reconnectTimer) return;
     if (this.reconnectAttempts >= this.maxReconnects) {
       console.error('ChatClient: max reconnect attempts reached');
+      this._pendingMessages = [];  // clear buffer so stale messages aren't re-sent
       this._emit('error', 'Impossible de se reconnecter au serveur.');
       return;
     }
@@ -151,20 +154,30 @@ class ChatClient {
   _send(obj) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(obj));
-    } else if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
-      // Buffer the message — will be flushed in onopen
-      this._pendingMessages.push(obj);
-      console.log('ChatClient: message buffered (WS connecting)');
     } else {
-      // WS is CLOSING, CLOSED, or null — buffer for reconnect
-      console.warn('ChatClient: message buffered (WS not connected)');
+      // Buffer the message — will be flushed in onopen
+      if (this._pendingMessages.length >= 50) {
+        this._pendingMessages.shift(); // drop oldest
+      }
       this._pendingMessages.push(obj);
+      console.warn('ChatClient: message buffered (WS not open)');
     }
   }
 
   _handleMessage(data) {
     switch (data.type) {
       case 'message':
+        // Dedup: skip if we optimistically rendered this message (counter-based)
+        const hash = data.room + '::' + data.owner + '::' + data.content;
+        const count = this._optimisticCounters.get(hash);
+        if (count && count > 0) {
+          if (count === 1) {
+            this._optimisticCounters.delete(hash);
+          } else {
+            this._optimisticCounters.set(hash, count - 1);
+          }
+          break; // don't emit — already shown optimistically
+        }
         this._emit('message', {
           id: data.id,
           room: data.room,
@@ -250,20 +263,41 @@ class ChatClient {
   /**
    * Send a message to the current room.
    * @param {string} content — message text
+   * @returns {string|null} hash if optimistically rendered, null otherwise
    */
   sendMessage(content) {
     if (!this.currentRoom) {
       console.error('ChatClient: no room joined');
       this._emit('error', 'Rejoignez une conversation d\'abord.');
-      return;
+      return null;
     }
-    if (!content || !content.trim()) return;
+    if (!content || !content.trim()) return null;
+
+    const trimmed = content.trim();
+
+    // Mark for dedup so the echo doesn't produce a duplicate
+    const hash = this.currentRoom + '::' + (this.ws && this.ws.readyState === WebSocket.OPEN ? '' : 'buffered::') + trimmed;
+    // We use a dynamic user-based hash for the dedup — the frontend will call markOptimistic with the actual user
 
     this._send({
       type: 'send_message',
       room: this.currentRoom,
-      message: content.trim(),
+      message: trimmed,
     });
+
+    return trimmed;
+  }
+
+  /**
+   * Mark a message as optimistically rendered so the WS echo is deduplicated.
+   * Supports multiple identical messages via a counter.
+   * @param {string} room - room slug
+   * @param {string} owner - message author name
+   * @param {string} content - message content
+   */
+  markOptimistic(room, owner, content) {
+    const hash = room + '::' + owner + '::' + content;
+    this._optimisticCounters.set(hash, (this._optimisticCounters.get(hash) || 0) + 1);
   }
 
   // ── Rooms list ────────────────────────────────────────────────────────────

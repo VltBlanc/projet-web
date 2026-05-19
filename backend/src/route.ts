@@ -450,13 +450,16 @@ router.get("/rooms", authMiddleware, async (ctx) => {
       last_message_preview: string | null;
     }>(
       `SELECT r.id, r.name, r.slug,
-              (SELECT m2.created_at FROM messages m2
-               WHERE m2.room_id = r.id
-               ORDER BY m2.id DESC LIMIT 1) AS last_message_at,
-              (SELECT m2.content FROM messages m2
-               WHERE m2.room_id = r.id
-               ORDER BY m2.id DESC LIMIT 1) AS last_message_preview
+              lm.created_at AS last_message_at,
+              lm.content AS last_message_preview
        FROM rooms r
+       LEFT JOIN LATERAL (
+         SELECT m.created_at, m.content
+         FROM messages m
+         WHERE m.room_id = r.id
+         ORDER BY m.id DESC
+         LIMIT 1
+       ) lm ON true
        ORDER BY last_message_at DESC NULLS LAST`
     );
     ctx.response.status = 200;

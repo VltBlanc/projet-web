@@ -164,7 +164,12 @@ sendForm.addEventListener('submit', function (e) {
   e.preventDefault();
   e.stopPropagation();
   if (!newMessage.value.trim()) return;
-  chat.sendMessage(newMessage.value);
+  const text = newMessage.value.trim();
+  // Only optimistically render if the message was actually accepted
+  if (chat.sendMessage(text) !== null) {
+    chat.markOptimistic(chat.currentRoom, currentUser, text);
+    appendMessage(currentUser, text, null, true);
+  }
   newMessage.value = '';
 });
 
