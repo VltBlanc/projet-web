@@ -282,8 +282,18 @@ function setRefreshCookie(ctx: Context, token: string) {
 }
 
 function clearAuthCookies(ctx: Context) {
-  ctx.cookies.delete("access_token", { path: "/" });
-  ctx.cookies.delete("refresh_token", { path: "/" });
+  ctx.cookies.delete("access_token", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: ctx.request.secure,
+  });
+  ctx.cookies.delete("refresh_token", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: ctx.request.secure,
+  });
 }
 
 // ── Auth middleware ────────────────────────────────────────────────────────────

@@ -266,9 +266,9 @@ class ChatClient {
     }
 
     try {
-      const response = await fetch(url, { credentials: 'include' });
-      if (!response.ok) {
-        console.error('ChatClient : Échec de la récupération de l\'historique', response.status);
+      const response = await this._fetchWithRefresh(url);
+      if (!response || !response.ok) {
+        console.error('ChatClient : Échec de la récupération de l\'historique', response ? response.status : 'null');
         return;
       }
       const responseData = await response.json();
@@ -361,6 +361,61 @@ class ChatClient {
     this._optimisticCounters.set(hash, currentCounter + 1);
   }
 
+  // ── Refresh automatique du token ─────────────────────────────────────────────
+
+  /**
+   * Tente de renouveler l'access_token via le refresh_token (cookie).
+   * @returns {Promise<boolean>} true si le refresh a réussi
+   */
+  async _tryRefresh() {
+    try {
+      const response = await fetch(`${this.restBase}/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * fetch avec retry automatique après refresh du token en cas de 401.
+   * Redirige vers login.html si le refresh échoue.
+   * @param {string} url
+   * @param {object} options
+   * @returns {Promise<Response|null>}
+   */
+  async _fetchWithRefresh(url, options = {}) {
+    const opts = { credentials: 'include', ...options };
+    let response;
+    try {
+      response = await fetch(url, opts);
+    } catch (error) {
+      console.error('ChatClient : Erreur réseau', error);
+      return null;
+    }
+
+    if (response.status === 401) {
+      console.warn('ChatClient : 401 reçu, tentative de refresh...');
+      const refreshed = await this._tryRefresh();
+      if (!refreshed) {
+        console.error('ChatClient : Refresh échoué → redirection login');
+        window.location.href = 'login.html';
+        return null;
+      }
+      // Nouvelle tentative après refresh
+      try {
+        response = await fetch(url, opts);
+      } catch (error) {
+        console.error('ChatClient : Erreur réseau après refresh', error);
+        return null;
+      }
+    }
+
+    return response;
+  }
+
   // ── Liste des salons ──────────────────────────────────────────────────────────
 
   /**
@@ -369,8 +424,8 @@ class ChatClient {
    */
   async fetchRooms() {
     try {
-      const response = await fetch(`${this.restBase}/rooms`, { credentials: 'include' });
-      if (!response.ok) {
+      const response = await this._fetchWithRefresh(`${this.restBase}/rooms`);
+      if (!response || !response.ok) {
         return [];
       }
       return await response.json();
