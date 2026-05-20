@@ -153,10 +153,10 @@ let currentRoomSlug = "general";
 /** Affiche les salons à partir des données de l'API, en mettant en valeur le salon actif */
 async function loadRooms() {
   const rooms = await chat.fetchRooms();
-  if (!rooms) {
-    return;
-  }
-  if (rooms.length === 0) {
+  if (!rooms || rooms.length === 0) {
+    if (chatRoomsContainer) {
+      chatRoomsContainer.innerHTML = '<div class="chat-loading">Aucune conversation disponible.</div>';
+    }
     return;
   }
 

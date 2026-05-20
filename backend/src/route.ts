@@ -232,6 +232,7 @@ export async function comparePassword(password: string, stored: string): Promise
     return result === 0;
   }
 
+  return false;
 }
 
 // ── JWT helpers ───────────────────────────────────────────────────────────────
