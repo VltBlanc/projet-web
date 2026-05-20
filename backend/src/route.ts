@@ -48,6 +48,37 @@ export async function initDb(): Promise<void> {
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS refresh_token TEXT
     `);
+    // ── Messaging system ─────────────────────────────────────────────────
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id         SERIAL PRIMARY KEY,
+        name       VARCHAR(255) NOT NULL,
+        slug       VARCHAR(255) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    // Drop constraints and old tables if they exist from before
+    await client.queryArray("ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_name_key CASCADE");
+    await client.queryArray("DROP TABLE IF EXISTS chat_room_members CASCADE");
+    await client.queryArray("DROP TABLE IF EXISTS chat_rooms CASCADE");
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id         SERIAL PRIMARY KEY,
+        room_id    INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        owner      VARCHAR(255) NOT NULL,
+        content    TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.queryArray(`
+      CREATE INDEX IF NOT EXISTS idx_messages_room_id ON messages(room_id)
+    `);
+    await client.queryArray(`
+      CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)
+    `);
+
+    // ── Events system ───────────────────────────────────────────────────
     await client.queryArray(`
       CREATE TABLE IF NOT EXISTS events (
         id          SERIAL PRIMARY KEY,
@@ -70,23 +101,35 @@ export async function initDb(): Promise<void> {
         UNIQUE(event_id, user_id)
       )
     `);
+
+    // ── Categories ──────────────────────────────────────────────────────
     await client.queryArray(`
-      CREATE TABLE IF NOT EXISTS chat_rooms (
-        id         SERIAL PRIMARY KEY,
-        event_id   INTEGER REFERENCES events(id) ON DELETE CASCADE UNIQUE,
-        name       VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
+      CREATE TABLE IF NOT EXISTS user_categories (
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        category_slug VARCHAR(255) NOT NULL,
+        PRIMARY KEY (user_id, category_slug)
       )
     `);
-    await client.queryArray(`
-      CREATE TABLE IF NOT EXISTS chat_room_members (
-        id        SERIAL PRIMARY KEY,
-        room_id   INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
-        user_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        joined_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(room_id, user_id)
-      )
-    `);
+
+
+    // Seed default messaging rooms
+    const rooms = [
+      ["Général", "general"],
+      ["Football", "football"],
+      ["Basket", "basket"],
+      ["Running", "running"],
+      ["Tennis", "tennis"],
+      ["Musculation", "musculation"],
+      ["Yoga", "yoga"],
+      ["Escalade", "escalade"],
+      ["Cyclisme", "cyclisme"]
+    ];
+    for (const [name, slug] of rooms) {
+      await client.queryArray(
+        `INSERT INTO rooms (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING`,
+        [name, slug],
+      );
+    }
 
     // Seed automatic events if the events table is empty
     const countResult = await client.queryObject<{ count: string }>(
@@ -115,7 +158,6 @@ export async function initDb(): Promise<void> {
       }
       console.log("Seeded", seeds.length, "automatic events.");
     }
-
     console.log("DB schema ready.");
   } finally {
     await client.end();
@@ -459,14 +501,280 @@ router.get("/health", (ctx) => {
   ctx.response.body = { status: "ok" };
 });
 
-// ── WebSocket ─────────────────────────────────────────────────────────────────
-const wsClients = new Set<WebSocket>();
+// ── Rooms REST ───────────────────────────────────────────────────────────────
 
-function broadcast(data: unknown) {
+/** GET /rooms  – list all rooms sorted by last message (auth required) */
+router.get("/rooms", authMiddleware, async (ctx) => {
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    const result = await client.queryObject<{
+      id: number;
+      name: string;
+      slug: string;
+      last_message_at: string | null;
+      last_message_preview: string | null;
+    }>(
+      `SELECT r.id, r.name, r.slug,
+              lm.created_at AS last_message_at,
+              lm.content AS last_message_preview
+       FROM rooms r
+       LEFT JOIN LATERAL (
+         SELECT m.created_at, m.content
+         FROM messages m
+         WHERE m.room_id = r.id
+         ORDER BY m.id DESC
+         LIMIT 1
+       ) lm ON true
+       WHERE r.slug = 'general'
+          OR r.slug IN (
+            SELECT category_slug FROM user_categories WHERE user_id = $1
+          )
+          OR r.slug IN (
+            SELECT 'event-' || event_id FROM event_participants WHERE user_id = $1
+          )
+       ORDER BY last_message_at DESC NULLS LAST`,
+       [userId]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = result.rows;
+  } catch (err) {
+    console.error("GET /rooms error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** GET /rooms/:slug/messages?before=<id>&limit=50  – paginated message history (auth required) */
+router.get("/rooms/:slug/messages", authMiddleware, async (ctx) => {
+  const slug = ctx.params.slug;
+  const before = ctx.request.url.searchParams.get("before");
+  const limit = parseInt(ctx.request.url.searchParams.get("limit") ?? "50");
+
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    let query = `
+      SELECT m.id, m.owner, m.content, m.created_at, m.room_id, r.slug as room_slug
+      FROM messages m
+      JOIN rooms r ON r.id = m.room_id
+      WHERE r.slug = $1
+    `;
+    const params: (string | number)[] = [slug];
+
+    if (before) {
+      query += ` AND m.id < $2`;
+      params.push(Number(before));
+    }
+
+    query += ` ORDER BY m.id DESC LIMIT $${params.length + 1}`;
+    params.push(Math.min(limit, 100));
+
+    const result = await client.queryObject<{
+      id: number;
+      owner: string;
+      content: string;
+      created_at: string;
+      room_id: number;
+      room_slug: string;
+    }>(query, params);
+
+    // Inverser pour l'ordre chronologique
+    const rows = result.rows.reverse();
+    ctx.response.status = 200;
+    ctx.response.body = {
+      messages: rows,
+      hasMore: rows.length === Math.min(limit, 100),
+      oldestId: rows.length > 0 ? rows[0].id : null,
+    };
+  } catch (err) {
+    console.error("GET /rooms/:slug/messages error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+// ── Categories REST ──────────────────────────────────────────────────────────
+
+/** GET /categories/followed */
+router.get("/categories/followed", authMiddleware, async (ctx) => {
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    const result = await client.queryObject<{ category_slug: string }>(
+      "SELECT category_slug FROM user_categories WHERE user_id = $1",
+      [userId]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = result.rows.map(r => r.category_slug);
+  } catch (err) {
+    console.error("GET /categories/followed error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /categories/:slug/follow */
+router.post("/categories/:slug/follow", authMiddleware, async (ctx) => {
+  const slug = ctx.params.slug;
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    await client.queryArray(
+      "INSERT INTO user_categories (user_id, category_slug) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [userId, slug]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Category followed" };
+  } catch (err) {
+    console.error("POST /categories/:slug/follow error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** DELETE /categories/:slug/follow */
+router.delete("/categories/:slug/follow", authMiddleware, async (ctx) => {
+  const slug = ctx.params.slug;
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    await client.queryArray(
+      "DELETE FROM user_categories WHERE user_id = $1 AND category_slug = $2",
+      [userId, slug]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Category unfollowed" };
+  } catch (err) {
+    console.error("DELETE /categories/:slug/follow error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+// ── Message persistence helper ───────────────────────────────────────────────
+
+async function persistMessage(
+  roomSlug: string,
+  userId: number,
+  owner: string,
+  content: string,
+): Promise<{ id: number; created_at: string } | null> {
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    return null;
+  }
+  try {
+    const result = await client.queryObject<{ id: number; created_at: string }>(
+      `INSERT INTO messages (room_id, user_id, owner, content)
+       SELECT id, $2, $3, $4 FROM rooms WHERE slug = $1
+       RETURNING messages.id, messages.created_at`,
+      [roomSlug, userId, owner, content],
+    );
+    if (result.rows.length > 0) return result.rows[0];
+    return null;
+  } catch (err) {
+    console.error("persistMessage error:", err);
+    return null;
+  } finally {
+    await client.end();
+  }
+}
+
+// ── WebSocket with rooms ─────────────────────────────────────────────────────
+
+type WsClient = WebSocket & { user?: { sub: string; name: string }; rooms: Set<string> };
+
+const roomClients = new Map<string, Set<WsClient>>();
+
+function getOrCreateRoom(room: string): Set<WsClient> {
+  if (!roomClients.has(room)) roomClients.set(room, new Set());
+  return roomClients.get(room)!;
+}
+
+function broadcastToRoom(room: string, data: unknown) {
   const msg = JSON.stringify(data);
-  for (const ws of wsClients) {
+  const clients = roomClients.get(room);
+  if (!clients) return;
+  for (const ws of clients) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(msg);
+    }
+  }
+}
+
+function broadcastUsernames() {
+  const generalRoom = roomClients.get("general");
+  if (!generalRoom) return;
+
+  const usernames = Array.from(generalRoom)
+    .map((client) => client.user?.name)
+    .filter(Boolean);
+
+  // Send the "update_users" event using our existing 'type' structure
+  broadcastToRoom("general", { type: "update_users", usernames });
+}
+
+function sendTo(ws: WsClient, data: unknown) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(data));
+  }
+}
+
+function removeFromAllRooms(ws: WsClient) {
+  if (ws.rooms) {
+    for (const room of ws.rooms) {
+      const clients = roomClients.get(room);
+      if (clients) {
+        clients.delete(ws);
+        if (clients.size === 0) roomClients.delete(room);
+      }
     }
   }
 }
@@ -494,36 +802,118 @@ router.get("/ws", async (ctx) => {
     return;
   }
 
-  const ws = ctx.upgrade();
-  (ws as unknown as Record<string, unknown>).user = payload;
+  const ws = ctx.upgrade() as WsClient;
+  ws.user = { sub: String(payload.sub), name: String(payload.name) };
+  ws.rooms = new Set();
 
   ws.onopen = () => {
-    wsClients.add(ws);
     console.log(`WS client connected: ${payload.name}`);
+    // Auto-join everyone to the general chat
+    const generalRoom = getOrCreateRoom("general");
+    generalRoom.add(ws);
+    ws.rooms!.add("general");
+    console.log(`${payload.name} auto-joined general`);
+    
+    // Broadcast the updated users list
+    broadcastUsernames();
   };
 
-  ws.onmessage = (event) => {
-    const userPayload =
-      (ws as unknown as Record<string, { name: string }>).user;
-    let data: { message?: string };
+  ws.onmessage = async (event) => {
+    let data: { type?: string; room?: string; message?: string };
     try {
       data = JSON.parse(event.data);
     } catch {
+      sendTo(ws, { type: "error", message: "Invalid JSON" });
       return;
     }
-    if (data.message && typeof data.message === "string") {
-      broadcast({ owner: userPayload.name, message: data.message });
+
+    const type = data.type;
+    const userPayload = ws.user!;
+    const userId = Number(userPayload.sub);
+    const userName = userPayload.name;
+
+    switch (type) {
+      case "join_room": {
+        const roomSlug = data.room;
+        if (!roomSlug || typeof roomSlug !== "string") {
+          sendTo(ws, { type: "error", message: "room is required" });
+          return;
+        }
+        ws.rooms!.add(roomSlug);
+        const room = getOrCreateRoom(roomSlug);
+        room.add(ws);
+        sendTo(ws, { type: "joined", room: roomSlug });
+        console.log(`${userName} joined room ${roomSlug}`);
+        break;
+      }
+      case "leave_room": {
+        const roomSlug = data.room;
+        if (!roomSlug || typeof roomSlug !== "string") {
+          sendTo(ws, { type: "error", message: "room is required" });
+          return;
+        }
+        ws.rooms!.delete(roomSlug);
+        const clients = roomClients.get(roomSlug);
+        if (clients) {
+          clients.delete(ws);
+          if (clients.size === 0) roomClients.delete(roomSlug);
+        }
+        sendTo(ws, { type: "left", room: roomSlug });
+        break;
+      }
+      case "send_message": {
+        const roomSlug = data.room;
+        const content = data.message;
+        if (!roomSlug || typeof roomSlug !== "string") {
+          sendTo(ws, { type: "error", message: "room is required" });
+          return;
+        }
+        if (!content || typeof content !== "string" || content.trim().length === 0) {
+          sendTo(ws, { type: "error", message: "message is required" });
+          return;
+        }
+        if (content.length > 2000) {
+          sendTo(ws, { type: "error", message: "Message too long (max 2000)" });
+          return;
+        }
+
+        // Verify the client has joined this room
+        if (!ws.rooms.has(roomSlug)) {
+          sendTo(ws, { type: "error", message: "You must join the room first" });
+          return;
+        }
+
+        const persisted = await persistMessage(roomSlug, userId, userName, content.trim());
+        if (!persisted) {
+          sendTo(ws, { type: "error", message: "Failed to save message" });
+          return;
+        }
+
+        const broadcastMsg = {
+          type: "message",
+          id: persisted.id,
+          room: roomSlug,
+          owner: userName,
+          content: content.trim(),
+          created_at: persisted.created_at,
+        };
+        broadcastToRoom(roomSlug, broadcastMsg);
+        break;
+      }
+      default:
+        sendTo(ws, { type: "error", message: `Unknown type: ${type}` });
     }
   };
 
   ws.onclose = () => {
-    wsClients.delete(ws);
-    console.log("WS client disconnected");
+    removeFromAllRooms(ws);
+    console.log(`WS client disconnected: ${payload.name}`);
+    broadcastUsernames();
   };
 
   ws.onerror = (err) => {
     console.error("WS error:", err);
-    wsClients.delete(ws);
+    removeFromAllRooms(ws);
   };
 });
 
@@ -592,18 +982,17 @@ router.post("/events", authMiddleware, async (ctx) => {
       [eventId, userId]
     );
 
-    // Create chat room for this event
-    const roomResult = await client.queryObject<{ id: number }>(
-      "INSERT INTO chat_rooms (event_id, name) VALUES ($1, $2) RETURNING id",
-      [eventId, title]
-    );
+    // Create chat room for this event in the main rooms table
     await client.queryArray(
-      "INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [roomResult.rows[0].id, userId]
+      "INSERT INTO rooms (name, slug) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [title, `event-${eventId}`]
     );
 
     ctx.response.status = 201;
     ctx.response.body = { message: "Event created", id: eventId };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
   } catch (err) {
     console.error("POST /events error:", err);
     ctx.response.status = 500;
@@ -649,27 +1038,11 @@ router.post("/events/:id/join", authMiddleware, async (ctx) => {
       [eventId, userId]
     );
 
-    // Create chat room if it doesn't exist, then add user
-    let roomResult = await client.queryObject<{ id: number }>(
-      "SELECT id FROM chat_rooms WHERE event_id = $1", [eventId]
-    );
-    let roomId: number;
-    if (roomResult.rows.length === 0) {
-      const newRoom = await client.queryObject<{ id: number }>(
-        "INSERT INTO chat_rooms (event_id, name) VALUES ($1, $2) RETURNING id",
-        [eventId, ev.rows[0].title]
-      );
-      roomId = newRoom.rows[0].id;
-    } else {
-      roomId = roomResult.rows[0].id;
-    }
-    await client.queryArray(
-      "INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [roomId, userId]
-    );
-
     ctx.response.status = 200;
-    ctx.response.body = { message: "Joined event", room_id: roomId };
+    ctx.response.body = { message: "Joined event" };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
   } catch (err) {
     console.error("POST /events/:id/join error:", err);
     ctx.response.status = 500;
@@ -695,18 +1068,12 @@ router.post("/events/:id/leave", authMiddleware, async (ctx) => {
       "DELETE FROM event_participants WHERE event_id = $1 AND user_id = $2",
       [eventId, userId]
     );
-    // Remove from associated chat room
-    const room = await client.queryObject<{ id: number }>(
-      "SELECT id FROM chat_rooms WHERE event_id = $1", [eventId]
-    );
-    if (room.rows.length > 0) {
-      await client.queryArray(
-        "DELETE FROM chat_room_members WHERE room_id = $1 AND user_id = $2",
-        [room.rows[0].id, userId]
-      );
-    }
+
     ctx.response.status = 200;
     ctx.response.body = { message: "Left event" };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
   } catch (err) {
     console.error("POST /events/:id/leave error:", err);
     ctx.response.status = 500;
@@ -739,30 +1106,4 @@ router.get("/my-events", authMiddleware, async (ctx) => {
   }
 });
 
-/** GET /my-chat-rooms — get chat rooms the current user is in (auth required) */
-router.get("/my-chat-rooms", authMiddleware, async (ctx) => {
-  const userId = Number(ctx.state.user.sub);
-  let client: Client;
-  try { client = await getClient(); } catch {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-    return;
-  }
-  try {
-    const result = await client.queryObject(`
-      SELECT cr.id, cr.name, cr.event_id,
-        (SELECT COUNT(*)::int FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count
-      FROM chat_rooms cr
-      INNER JOIN chat_room_members crm ON crm.room_id = cr.id
-      WHERE crm.user_id = $1
-      ORDER BY cr.created_at DESC
-    `, [userId]);
-    ctx.response.body = result.rows;
-  } catch (err) {
-    console.error("GET /my-chat-rooms error:", err);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  } finally {
-    await client.end();
-  }
-});
+

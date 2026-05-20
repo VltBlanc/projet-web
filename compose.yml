@@ -21,8 +21,8 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - JWT_SECRET=${JWT_SECRET} # Signe le token d'accés
-      - REFRESH_SECRET=${REFRESH_SECRET} # Signe le token de rafraissement  
+      - JWT_SECRET=${JWT_SECRET}
+      - REFRESH_SECRET=${REFRESH_SECRET}
       - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:8080}
     healthcheck:
             test: ["CMD", "deno", "eval", "Deno.connect({port: 8081})"]

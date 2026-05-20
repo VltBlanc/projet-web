@@ -28,6 +28,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
         <span>Événements</span>
       </button>
+      <button class="nav-item" data-section="categories">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Catégories</span>
+      </button>
       <button class="nav-item" data-section="chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         <span>Messages</span>
@@ -80,20 +84,42 @@
       </div>
     </section>
 
+    <!-- Categories section -->
+    <section id="categories" class="content-section">
+      <div id="categories-main">
+        <div class="page-header">
+          <h2>Catégories</h2>
+          <p>Explore les activités par sport</p>
+        </div>
+        <div class="categories-grid" id="categories-grid">
+          <!-- Categories inserted by JS -->
+        </div>
+      </div>
+      <div id="category-detail" style="display: none;">
+        <div class="page-header">
+          <button class="btn-secondary" id="btn-back-categories" style="margin-bottom: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Retour
+          </button>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h2 id="category-detail-title">Catégorie</h2>
+            <button id="btn-follow-category" class="btn-primary">Suivre</button>
+          </div>
+          <p>Activités disponibles pour cette catégorie</p>
+        </div>
+        <div class="events-grid" id="category-events-grid">
+          <!-- Events inserted by JS -->
+        </div>
+      </div>
+    </section>
+
     <!-- Chat section -->
     <section id="chat" class="content-section">
       <div class="chat-layout">
         <div class="chat-sidebar">
           <h3>Conversations</h3>
           <div class="chat-rooms" id="chat-rooms">
-            <div class="room-item active" data-room="general">
-              <div class="room-avatar">G</div>
-              <div class="room-info">
-                <span class="room-name">Général</span>
-                <span class="room-preview">Discussions libres</span>
-              </div>
-            </div>
-            <!-- Event chat rooms are loaded dynamically by events.js -->
+            <div class="chat-loading">Chargement des conversations…</div>
           </div>
         </div>
         <div class="chat-main">
@@ -108,6 +134,12 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
           </form>
+        </div>
+        <div class="chat-users-sidebar">
+          <h3>Utilisateurs en ligne</h3>
+          <ul id="users-online" class="users-online-list">
+            <!-- Populated dynamically -->
+          </ul>
         </div>
       </div>
     </section>
@@ -138,6 +170,8 @@
       </div>
     </section>
   </main>
+
+  <script src="chat/chat-client.js"></script>
 
   <!-- Create Event Modal -->
   <div class="modal-overlay" id="create-event-modal">
@@ -193,7 +227,11 @@
     </div>
   </div>
 
-  <script src="events.js"></script>
-  <script src="main.js"></script>
+  <script src="events/events.js"></script>
+  <script src="navigation/navigation.js"></script>
+  <script src="categories/categories.js"></script>
+  <script src="chat/chat-dashboard.js"></script>
+  <script src="profile/profile.js"></script>
+  <script src="auth/auth.js"></script>
 </body>
 </html>

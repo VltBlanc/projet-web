@@ -141,6 +141,33 @@ body{
 .event-btn:hover{ background:var(--primary-dark); }
 .event-btn.full{ background:var(--border); color:var(--text-muted); cursor:not-allowed; }
 
+/* -- Categories -- */
+.categories-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1.25rem; }
+.category-card{
+  background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:1.5rem; display:flex; flex-direction:column; align-items:center; gap:1rem;
+  transition:transform .2s, box-shadow .2s; cursor:pointer; text-align:center;
+}
+.category-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+.category-icon{
+  width:64px; height:64px; border-radius:50%; background:var(--primary-light); color:var(--primary-dark);
+  display:flex; align-items:center; justify-content:center; font-size:1.8rem;
+}
+.category-title{ font-weight:700; font-size:1.1rem; }
+.category-count{ font-size:0.85rem; color:var(--text-muted); display:flex; flex-direction:column; align-items:center; gap:0.25rem; }
+.category-card.followed {
+  border: 2px solid var(--primary);
+}
+.followed-badge {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
 /* -- Chat layout -- */
 .chat-layout{ display:flex; gap:1rem; height:calc(100vh - 140px); }
 .chat-sidebar{
@@ -164,9 +191,24 @@ body{
 .chat-title{ font-weight:700; }
 .chat-status{ font-size:0.8rem; color:var(--primary); font-weight:600; }
 
+.chat-users-sidebar{
+  width:200px; background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:1rem; display:flex; flex-direction:column;
+}
+.chat-users-sidebar h3{ font-size:0.9rem; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.05em; margin-bottom:0.75rem; }
+.users-online-list{ list-style:none; overflow-y:auto; flex:1; }
+.users-online-list li{
+  display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0; font-size:0.9rem; font-weight:600; color:var(--text); border-bottom:1px solid var(--border);
+}
+.users-online-list li:last-child{ border-bottom:none; }
+.users-online-list li::before{ content:''; display:inline-block; width:8px; height:8px; background:var(--primary); border-radius:50%; }
+
 /* Chat box (same id as before for compatibility) */
 #chat-box{
   flex:1; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:0.6rem;
+}
+.chat-loading{
+  text-align:center; padding:2rem; color:var(--text-muted); font-style:italic;
 }
 .message{
   max-width:70%; padding:0.7rem 1rem; border-radius:12px; font-size:0.95rem; line-height:1.4;
