@@ -9,6 +9,7 @@ const JWT_SECRET = new TextEncoder().encode(
 const REFRESH_SECRET = new TextEncoder().encode(
   Deno.env.get("REFRESH_SECRET") ?? "dev-refresh-secret-change-me"
 );
+const PEPPER = Deno.env.get("PEPPER") ?? "dev-secret-pepper-change-me";
 const ACCESS_EXPIRY = "15m";
 const REFRESH_EXPIRY = "7d";
 
@@ -177,9 +178,11 @@ const KEY_LENGTH = 256; // bits
 
 async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+  // Append PEPPER to password
+  const pepperedPassword = password + PEPPER;
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(pepperedPassword),
     "PBKDF2",
     false,
     ["deriveBits"],
@@ -203,27 +206,32 @@ async function comparePassword(password: string, stored: string): Promise<boolea
   const salt = new Uint8Array(
     saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)),
   );
-  const key = await crypto.subtle.importKey(
+
+  // 1. Try with Pepper
+  const keyWithPepper = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(password + PEPPER),
     "PBKDF2",
     false,
     ["deriveBits"],
   );
-  const derivedBits = await crypto.subtle.deriveBits(
+  const derivedBitsWithPepper = await crypto.subtle.deriveBits(
     { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
-    key,
+    keyWithPepper,
     KEY_LENGTH,
   );
-  const hashArray = new Uint8Array(derivedBits);
-  const computedHash = Array.from(hashArray).map((b) => b.toString(16).padStart(2, "0")).join("");
-  // Constant-time comparison
-  if (computedHash.length !== hashHex.length) return false;
-  let result = 0;
-  for (let i = 0; i < computedHash.length; i++) {
-    result |= computedHash.charCodeAt(i) ^ hashHex.charCodeAt(i);
+  const hashArrayWithPepper = new Uint8Array(derivedBitsWithPepper);
+  const computedHashWithPepper = Array.from(hashArrayWithPepper).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  // Constant-time comparison for Peppered hash
+  if (computedHashWithPepper.length === hashHex.length) {
+    let result = 0;
+    for (let i = 0; i < computedHashWithPepper.length; i++) {
+      result |= computedHashWithPepper.charCodeAt(i) ^ hashHex.charCodeAt(i);
+    }
+    return result === 0;
   }
-  return result === 0;
+
 }
 
 // ── JWT helpers ───────────────────────────────────────────────────────────────
@@ -255,7 +263,7 @@ async function verifyRefreshToken(token: string) {
 async function setAccessCookie(ctx: Context, token: string) {
   ctx.cookies.set("access_token", token, {
     httpOnly: true,
-    secure: false, // localhost dev
+    secure: ctx.request.secure,
     sameSite: "lax",
     path: "/",
     maxAge: 15 * 60, // 15 minutes in seconds
@@ -265,7 +273,7 @@ async function setAccessCookie(ctx: Context, token: string) {
 async function setRefreshCookie(ctx: Context, token: string) {
   ctx.cookies.set("refresh_token", token, {
     httpOnly: true,
-    secure: false,
+    secure: ctx.request.secure,
     sameSite: "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60, // 7 days

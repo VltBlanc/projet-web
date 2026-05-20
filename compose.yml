@@ -23,6 +23,7 @@ services:
       - DB_NAME=${DB_NAME}
       - JWT_SECRET=${JWT_SECRET}
       - REFRESH_SECRET=${REFRESH_SECRET}
+      - PEPPER=${PEPPER}
       - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:8080}
     healthcheck:
             test: ["CMD", "deno", "eval", "Deno.connect({port: 8081})"]
