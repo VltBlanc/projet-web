@@ -167,8 +167,6 @@ if (backToCategoriesButton) {
 // Exposer globalement pour permettre la mise à jour depuis d'autres modules
 window.renderCategories = renderCategories;
 
-renderCategories();
-
 // Réinitialiser la vue lors du clic sur le menu "Catégories"
 const navigationItems = document.querySelectorAll(".nav-item");
 navigationItems.forEach((itemButton) => {
