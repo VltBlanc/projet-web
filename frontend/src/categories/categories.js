@@ -29,11 +29,12 @@ async function fetchFollowedCategories() {
     const response = await fetch(`${globalRestHost}/categories/followed`, { credentials: "include" });
     if (response.ok) {
       followedCategories = await response.json();
-      renderCategories();
     }
   } catch (error) {
     console.error("Error fetching followed categories:", error);
   }
+  // Toujours re-rendre les catégories, que la requête ait réussi ou non
+  renderCategories();
 }
 
 let currentCategoryDetail = null;
@@ -91,8 +92,7 @@ function updateFollowButton() {
   }
 }
 
-// Récupération initiale
-fetchFollowedCategories();
+// La récupération initiale est déclenchée après l'exposition de window.renderCategories (voir bas du fichier)
 
 function renderCategories() {
   if (!categoriesGrid) {
@@ -167,9 +167,14 @@ if (backToCategoriesButton) {
 // Exposer globalement pour permettre la mise à jour depuis d'autres modules
 window.renderCategories = renderCategories;
 
+// Rendu initial synchrone : les cartes apparaissent immédiatement (avec compteurs à 0)
+// puis sont mises à jour dès que les événements sont chargés via refreshAll()
+renderCategories();
+fetchFollowedCategories();
+
 // Réinitialiser la vue lors du clic sur le menu "Catégories"
-const navigationItems = document.querySelectorAll(".nav-item");
-navigationItems.forEach((itemButton) => {
+const categoryNavItems = document.querySelectorAll(".nav-item");
+categoryNavItems.forEach((itemButton) => {
   itemButton.addEventListener("click", () => {
     if (itemButton.dataset.section === "categories") {
       if (categoriesMain) {
