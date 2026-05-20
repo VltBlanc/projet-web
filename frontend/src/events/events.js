@@ -325,15 +325,17 @@ function initCreateEventModal() {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const dateValue = form.querySelector('#ev-date').value.trim();
+    const timeValue = form.querySelector('#ev-time').value.trim();
     const formData = {
       title: form.querySelector('#ev-title').value.trim(),
       sport: form.querySelector('#ev-sport').value.trim(),
       location: form.querySelector('#ev-location').value.trim(),
-      event_date: form.querySelector('#ev-date').value,
+      event_date: dateValue + 'T' + timeValue,
       capacity: Number(form.querySelector('#ev-capacity').value),
     };
 
-    if (!formData.title || !formData.sport || !formData.location || !formData.event_date || !formData.capacity) {
+    if (!formData.title || !formData.sport || !formData.location || !dateValue || !timeValue || !formData.capacity) {
       alert('Tous les champs sont obligatoires');
       return;
     }
