@@ -1,0 +1,59 @@
+stages:
+  - lint
+  - test
+  - build
+
+# ── LINT STAGE ──
+lint-code:
+  stage: lint
+  image: denoland/deno:alpine
+  script:
+    - deno lint backend/src frontend/front_server.ts
+
+# ── TEST STAGE ──
+test-backend:
+  stage: test
+  image: denoland/deno:alpine
+  script:
+    - cd backend
+    - deno test --allow-read --allow-net --allow-env src/*.test.ts
+
+test-frontend:
+  stage: test
+  image: denoland/deno:alpine
+  script:
+    - cd frontend
+    - deno cache front_server.ts
+
+# ── BUILD STAGE (Kaniko - alternative à Docker-in-Docker) ──
+.kaniko-setup:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+
+build-backend:
+  extends: .kaniko-setup
+  stage: build
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/backend"
+      --dockerfile "${CI_PROJECT_DIR}/backend/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/backend:${CI_COMMIT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}/backend:latest"
+  only:
+    - main
+
+build-frontend:
+  extends: .kaniko-setup
+  stage: build
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/frontend"
+      --dockerfile "${CI_PROJECT_DIR}/frontend/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}/frontend:latest"
+  only:
+    - main

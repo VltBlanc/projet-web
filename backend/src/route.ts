@@ -176,7 +176,7 @@ const PBKDF2_ITERATIONS = 100_000;
 const SALT_LENGTH = 16; // bytes
 const KEY_LENGTH = 256; // bits
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   // Append PEPPER to password
   const pepperedPassword = password + PEPPER;
@@ -198,7 +198,7 @@ async function hashPassword(password: string): Promise<string> {
   return `${saltHex}:${hashHex}`;
 }
 
-async function comparePassword(password: string, stored: string): Promise<boolean> {
+export async function comparePassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split(":");
   if (parts.length !== 2) return false;
   const [saltHex, hashHex] = parts;
@@ -235,7 +235,7 @@ async function comparePassword(password: string, stored: string): Promise<boolea
 }
 
 // ── JWT helpers ───────────────────────────────────────────────────────────────
-async function signAccessToken(userId: number, name: string): Promise<string> {
+export async function signAccessToken(userId: number, name: string): Promise<string> {
   return await new SignJWT({ sub: String(userId), name })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -243,7 +243,7 @@ async function signAccessToken(userId: number, name: string): Promise<string> {
     .sign(JWT_SECRET);
 }
 
-async function signRefreshToken(userId: number): Promise<string> {
+export async function signRefreshToken(userId: number): Promise<string> {
   return await new SignJWT({ sub: String(userId) })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -251,16 +251,16 @@ async function signRefreshToken(userId: number): Promise<string> {
     .sign(REFRESH_SECRET);
 }
 
-async function verifyAccessToken(token: string) {
+export async function verifyAccessToken(token: string) {
   return await jwtVerify(token, JWT_SECRET, { clockTolerance: 60 });
 }
 
-async function verifyRefreshToken(token: string) {
+export async function verifyRefreshToken(token: string) {
   return await jwtVerify(token, REFRESH_SECRET, { clockTolerance: 60 });
 }
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
-async function setAccessCookie(ctx: Context, token: string) {
+function setAccessCookie(ctx: Context, token: string) {
   ctx.cookies.set("access_token", token, {
     httpOnly: true,
     secure: ctx.request.secure,
@@ -270,7 +270,7 @@ async function setAccessCookie(ctx: Context, token: string) {
   });
 }
 
-async function setRefreshCookie(ctx: Context, token: string) {
+function setRefreshCookie(ctx: Context, token: string) {
   ctx.cookies.set("refresh_token", token, {
     httpOnly: true,
     secure: ctx.request.secure,
@@ -280,7 +280,7 @@ async function setRefreshCookie(ctx: Context, token: string) {
   });
 }
 
-async function clearAuthCookies(ctx: Context) {
+function clearAuthCookies(ctx: Context) {
   ctx.cookies.delete("access_token", { path: "/" });
   ctx.cookies.delete("refresh_token", { path: "/" });
 }
