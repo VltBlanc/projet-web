@@ -48,17 +48,10 @@ CREATE TABLE IF NOT EXISTS event_participants (
     UNIQUE(event_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS chat_rooms (
-    id SERIAL PRIMARY KEY,
-    event_id INTEGER REFERENCES events(id) ON DELETE CASCADE UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
+-- ── Categories system ───────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS chat_room_members (
-    id SERIAL PRIMARY KEY,
-    room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS user_categories (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    joined_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(room_id, user_id)
+    category_slug VARCHAR(255) NOT NULL,
+    PRIMARY KEY (user_id, category_slug)
 );
