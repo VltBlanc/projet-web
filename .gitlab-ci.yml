@@ -1,0 +1,17 @@
+stages:
+  - test
+
+test-backend:
+  stage: test
+  image: denoland/deno:alpine
+  script:
+    - cd backend
+    - deno test --allow-read --allow-net --allow-env src/*.test.ts
+
+test-frontend:
+  stage: test
+  image: denoland/deno:alpine
+  script:
+    - cd frontend
+    # Since there are no tests in frontend yet, we can at least check if it compiles/caches
+    - deno cache front_server.ts
