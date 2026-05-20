@@ -101,7 +101,10 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
             Retour
           </button>
-          <h2 id="category-detail-title">Catégorie</h2>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h2 id="category-detail-title">Catégorie</h2>
+            <button id="btn-follow-category" class="btn-primary">Suivre</button>
+          </div>
           <p>Activités disponibles pour cette catégorie</p>
         </div>
         <div class="events-grid" id="category-events-grid">
@@ -168,7 +171,7 @@
     </section>
   </main>
 
-  <script src="chat-client.js"></script>
+  <script src="chat/chat-client.js"></script>
 
   <!-- Create Event Modal -->
   <div class="modal-overlay" id="create-event-modal">
@@ -220,7 +223,11 @@
     </div>
   </div>
 
-  <script src="events.js"></script>
-  <script src="main.js"></script>
+  <script src="events/events.js"></script>
+  <script src="navigation/navigation.js"></script>
+  <script src="categories/categories.js"></script>
+  <script src="chat/chat-dashboard.js"></script>
+  <script src="profile/profile.js"></script>
+  <script src="auth/auth.js"></script>
 </body>
 </html>
