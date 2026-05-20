@@ -150,10 +150,16 @@ export async function initDb(): Promise<void> {
         { title: "Sortie vélo route 80km", sport: "Cyclisme", location: "Place Bellecour", days: 10, hours: 7, capacity: 20 },
       ];
       for (const s of seeds) {
-        await client.queryArray(
+        const result = await client.queryObject<{ id: number }>(
           `INSERT INTO events (title, sport, location, event_date, capacity, is_automatic)
-           VALUES ($1, $2, $3, NOW() + INTERVAL '${s.days} days' + INTERVAL '${s.hours} hours', $4, TRUE)`,
+           VALUES ($1, $2, $3, NOW() + INTERVAL '${s.days} days' + INTERVAL '${s.hours} hours', $4, TRUE)
+           RETURNING id`,
           [s.title, s.sport, s.location, s.capacity]
+        );
+        const eventId = result.rows[0].id;
+        await client.queryArray(
+          "INSERT INTO rooms (name, slug) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [s.title, `event-${eventId}`]
         );
       }
       console.log("Seeded", seeds.length, "automatic events.");
@@ -1036,6 +1042,12 @@ router.post("/events/:id/join", authMiddleware, async (ctx) => {
     await client.queryArray(
       "INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [eventId, userId]
+    );
+
+    // Create chat room for this event if it doesn't exist in the main rooms table
+    await client.queryArray(
+      "INSERT INTO rooms (name, slug) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [ev.rows[0].title, `event-${eventId}`]
     );
 
     ctx.response.status = 200;
