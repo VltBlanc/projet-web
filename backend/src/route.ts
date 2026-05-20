@@ -252,7 +252,7 @@ export async function verifyRefreshToken(token: string) {
 }
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
-async function setAccessCookie(ctx: Context, token: string) {
+function setAccessCookie(ctx: Context, token: string) {
   ctx.cookies.set("access_token", token, {
     httpOnly: true,
     secure: false, // localhost dev
@@ -262,7 +262,7 @@ async function setAccessCookie(ctx: Context, token: string) {
   });
 }
 
-async function setRefreshCookie(ctx: Context, token: string) {
+function setRefreshCookie(ctx: Context, token: string) {
   ctx.cookies.set("refresh_token", token, {
     httpOnly: true,
     secure: false,
@@ -272,7 +272,7 @@ async function setRefreshCookie(ctx: Context, token: string) {
   });
 }
 
-async function clearAuthCookies(ctx: Context) {
+function clearAuthCookies(ctx: Context) {
   ctx.cookies.delete("access_token", { path: "/" });
   ctx.cookies.delete("refresh_token", { path: "/" });
 }
