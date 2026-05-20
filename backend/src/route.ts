@@ -102,13 +102,27 @@ export async function initDb(): Promise<void> {
       )
     `);
 
+    // ── Categories ──────────────────────────────────────────────────────
+    await client.queryArray(`
+      CREATE TABLE IF NOT EXISTS user_categories (
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        category_slug VARCHAR(255) NOT NULL,
+        PRIMARY KEY (user_id, category_slug)
+      )
+    `);
+
 
     // Seed default messaging rooms
     const rooms = [
       ["Général", "general"],
       ["Football", "football"],
+      ["Basket", "basket"],
       ["Running", "running"],
+      ["Tennis", "tennis"],
       ["Musculation", "musculation"],
+      ["Yoga", "yoga"],
+      ["Escalade", "escalade"],
+      ["Cyclisme", "cyclisme"]
     ];
     for (const [name, slug] of rooms) {
       await client.queryArray(
@@ -519,7 +533,10 @@ router.get("/rooms", authMiddleware, async (ctx) => {
          ORDER BY m.id DESC
          LIMIT 1
        ) lm ON true
-       WHERE r.slug NOT LIKE 'event-%' 
+       WHERE r.slug = 'general'
+          OR r.slug IN (
+            SELECT category_slug FROM user_categories WHERE user_id = $1
+          )
           OR r.slug IN (
             SELECT 'event-' || event_id FROM event_participants WHERE user_id = $1
           )
@@ -577,7 +594,7 @@ router.get("/rooms/:slug/messages", authMiddleware, async (ctx) => {
       room_slug: string;
     }>(query, params);
 
-    // Reverse to chronological order
+    // Inverser pour l'ordre chronologique
     const rows = result.rows.reverse();
     ctx.response.status = 200;
     ctx.response.body = {
@@ -587,6 +604,91 @@ router.get("/rooms/:slug/messages", authMiddleware, async (ctx) => {
     };
   } catch (err) {
     console.error("GET /rooms/:slug/messages error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+// ── Categories REST ──────────────────────────────────────────────────────────
+
+/** GET /categories/followed */
+router.get("/categories/followed", authMiddleware, async (ctx) => {
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    const result = await client.queryObject<{ category_slug: string }>(
+      "SELECT category_slug FROM user_categories WHERE user_id = $1",
+      [userId]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = result.rows.map(r => r.category_slug);
+  } catch (err) {
+    console.error("GET /categories/followed error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /categories/:slug/follow */
+router.post("/categories/:slug/follow", authMiddleware, async (ctx) => {
+  const slug = ctx.params.slug;
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    await client.queryArray(
+      "INSERT INTO user_categories (user_id, category_slug) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [userId, slug]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Category followed" };
+  } catch (err) {
+    console.error("POST /categories/:slug/follow error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** DELETE /categories/:slug/follow */
+router.delete("/categories/:slug/follow", authMiddleware, async (ctx) => {
+  const slug = ctx.params.slug;
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    const userId = Number(ctx.state.user.sub);
+    await client.queryArray(
+      "DELETE FROM user_categories WHERE user_id = $1 AND category_slug = $2",
+      [userId, slug]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Category unfollowed" };
+  } catch (err) {
+    console.error("DELETE /categories/:slug/follow error:", err);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   } finally {
