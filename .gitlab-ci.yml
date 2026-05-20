@@ -25,36 +25,35 @@ test-frontend:
     - cd frontend
     - deno cache front_server.ts
 
-# ── BUILD STAGE (Push to Container Registry) ──
-# Note: Requires a GitLab Runner with Docker-in-Docker (dind) enabled
-.docker-setup:
-  image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      alias: docker
-  variables:
-    # Désactivation du TLS pour une compatibilité maximale
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+# ── BUILD STAGE (Kaniko - alternative à Docker-in-Docker) ──
+.kaniko-setup:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
   before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
 
 build-backend:
-  extends: .docker-setup
+  extends: .kaniko-setup
   stage: build
   script:
-    - docker build -t $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/backend:latest ./backend
-    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
-    - docker push $CI_REGISTRY_IMAGE/backend:latest
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/backend"
+      --dockerfile "${CI_PROJECT_DIR}/backend/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/backend:${CI_COMMIT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}/backend:latest"
   only:
     - main
 
 build-frontend:
-  extends: .docker-setup
+  extends: .kaniko-setup
   stage: build
   script:
-    - docker build -t $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/frontend:latest ./frontend
-    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
-    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/frontend"
+      --dockerfile "${CI_PROJECT_DIR}/frontend/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}/frontend:latest"
   only:
     - main
