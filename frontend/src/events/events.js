@@ -11,6 +11,11 @@ if (location.hostname === 'localhost') {
 let allEvents = [];
 let myEventIds = new Set();
 
+// Vérifier si l'utilisateur est admin
+function isAdmin() {
+  return localStorage.getItem('userRole') === 'admin';
+}
+
 // ── Fonctions d'aide ──
 function escapeHtml(str) {
   const escapeDiv = document.createElement('div');
@@ -131,6 +136,20 @@ function renderFeedGrid() {
       joinButtonText = '✓ Inscrit';
     }
 
+    let feedAdminDeleteHtml = '';
+    if (isAdmin()) {
+      feedAdminDeleteHtml = `<button class="event-btn event-btn-delete feed-delete-btn" data-event-id="${event.id}" title="Supprimer l'événement">🗑️</button>`;
+    }
+
+    let footerActionsHtml = `<button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>`;
+    if (feedAdminDeleteHtml) {
+      footerActionsHtml = `
+        <div style="display:flex; gap: 0.5rem; align-items:center;">
+          ${feedAdminDeleteHtml}
+          <button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>
+        </div>`;
+    }
+
     card.innerHTML = `
       <div class="feed-image"><span class="feed-badge">${escapeHtml(event.sport)}</span></div>
       <div class="feed-body">
@@ -138,7 +157,7 @@ function renderFeedGrid() {
         <div class="feed-meta">📍 ${escapeHtml(event.location)} &nbsp;•&nbsp; 🕐 ${formatEventDate(event.event_date)}</div>
         <div class="feed-footer">
           <div class="feed-avatars">${avatarsHtml}</div>
-          <button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>
+          ${footerActionsHtml}
         </div>
       </div>`;
     feedGrid.appendChild(card);
@@ -165,13 +184,19 @@ function createEventCardHTML(event) {
     creatorHtml = `<div class="event-creator">👤 ${escapeHtml(event.creator_name)}</div>`;
   }
 
-  let actionButtonHtml = '';
+  let actionButtonsHtml = '';
   if (isJoined) {
-    actionButtonHtml = `<button class="event-btn event-btn-leave" data-event-id="${event.id}">Quitter</button>`;
+    actionButtonsHtml = `<button class="event-btn event-btn-leave" data-event-id="${event.id}">Quitter</button>`;
   } else if (isFull) {
-    actionButtonHtml = `<button class="event-btn full" data-event-id="${event.id}" disabled>Complet</button>`;
+    actionButtonsHtml = `<button class="event-btn full" data-event-id="${event.id}" disabled>Complet</button>`;
   } else {
-    actionButtonHtml = `<button class="event-btn" data-event-id="${event.id}">Rejoindre</button>`;
+    actionButtonsHtml = `<button class="event-btn" data-event-id="${event.id}">Rejoindre</button>`;
+  }
+
+  // Bouton supprimer pour les admins
+  let adminDeleteHtml = '';
+  if (isAdmin()) {
+    adminDeleteHtml = `<button class="event-btn event-btn-delete" data-event-id="${event.id}" title="Supprimer l'événement">🗑️ Supprimer</button>`;
   }
 
   eventDiv.innerHTML = `
@@ -185,7 +210,10 @@ function createEventCardHTML(event) {
     <div class="event-bar"><div style="width:${Math.min(fillPercent, 100)}%"></div></div>
     <div class="event-footer">
       <span class="event-spots">${participantsCount}/${event.capacity} inscrits</span>
-      ${actionButtonHtml}
+      <div class="event-actions">
+        ${actionButtonsHtml}
+        ${adminDeleteHtml}
+      </div>
     </div>`;
   return eventDiv;
 }
@@ -264,6 +292,27 @@ async function leaveEvent(eventId) {
     await refreshAll();
   } catch (error) {
     console.error('Leave error:', error);
+  }
+}
+
+// ── Supprimer un événement (admin uniquement) ──
+async function deleteEvent(eventId) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible.')) {
+    return;
+  }
+  try {
+    const response = await apiFetch(`/events/${eventId}`, { method: 'DELETE' });
+    if (!response) {
+      return;
+    }
+    if (!response.ok) {
+      const errorData = await response.json();
+      alert(errorData.error || 'Erreur lors de la suppression');
+      return;
+    }
+    await refreshAll();
+  } catch (error) {
+    console.error('Delete event error:', error);
   }
 }
 
@@ -368,7 +417,7 @@ function initClickHandlers() {
       return;
     }
 
-    const eventJoinButton = event.target.closest('.event-btn:not(.full):not(.event-btn-leave)');
+    const eventJoinButton = event.target.closest('.event-btn:not(.full):not(.event-btn-leave):not(.event-btn-delete)');
     if (eventJoinButton) {
       if (eventJoinButton.dataset.eventId) {
         const eventId = Number(eventJoinButton.dataset.eventId);
@@ -384,6 +433,15 @@ function initClickHandlers() {
       const eventId = Number(leaveButton.dataset.eventId);
       if (eventId) {
         await leaveEvent(eventId);
+      }
+      return;
+    }
+
+    const deleteButton = event.target.closest('.event-btn-delete');
+    if (deleteButton) {
+      const eventId = Number(deleteButton.dataset.eventId);
+      if (eventId) {
+        await deleteEvent(eventId);
       }
       return;
     }

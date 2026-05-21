@@ -10,6 +10,14 @@ if (!profileUsername) {
 
 if (profileUsernameElement) {
   profileUsernameElement.textContent = profileUsername;
+  // Ajouter un badge admin si l'utilisateur est admin
+  const userRole = localStorage.getItem('userRole');
+  if (userRole === 'admin') {
+    const badge = document.createElement('span');
+    badge.className = 'admin-badge';
+    badge.textContent = 'Admin';
+    profileUsernameElement.appendChild(badge);
+  }
 }
 
 if (profileUsername !== "Utilisateur") {

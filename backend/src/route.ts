@@ -42,12 +42,17 @@ export async function initDb(): Promise<void> {
         id            SERIAL PRIMARY KEY,
         name          VARCHAR(255) NOT NULL UNIQUE,
         password      TEXT NOT NULL,
-        refresh_token TEXT
+        refresh_token TEXT,
+        role          VARCHAR(20) NOT NULL DEFAULT 'user'
       )
     `);
     await client.queryArray(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS refresh_token TEXT
+    `);
+    await client.queryArray(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user'
     `);
     // ── Messaging system ─────────────────────────────────────────────────
     await client.queryArray(`
@@ -236,8 +241,8 @@ export async function comparePassword(password: string, stored: string): Promise
 }
 
 // ── JWT helpers ───────────────────────────────────────────────────────────────
-export async function signAccessToken(userId: number, name: string): Promise<string> {
-  return await new SignJWT({ sub: String(userId), name })
+export async function signAccessToken(userId: number, name: string, role: string = "user"): Promise<string> {
+  return await new SignJWT({ sub: String(userId), name, role })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(ACCESS_EXPIRY)
@@ -309,6 +314,32 @@ export async function authMiddleware(
   }
   try {
     const { payload } = await verifyAccessToken(token);
+    ctx.state.user = payload;
+    await next();
+  } catch {
+    ctx.response.status = 401;
+    ctx.response.body = { error: "Unauthorized" };
+  }
+}
+
+// ── Admin middleware ───────────────────────────────────────────────────────────
+export async function adminMiddleware(
+  ctx: Context,
+  next: () => Promise<unknown>
+) {
+  const token = await ctx.cookies.get("access_token");
+  if (!token) {
+    ctx.response.status = 401;
+    ctx.response.body = { error: "Unauthorized" };
+    return;
+  }
+  try {
+    const { payload } = await verifyAccessToken(token);
+    if (payload.role !== "admin") {
+      ctx.response.status = 403;
+      ctx.response.body = { error: "Forbidden: admin access required" };
+      return;
+    }
     ctx.state.user = payload;
     await next();
   } catch {
@@ -396,9 +427,9 @@ router.post("/login", async (ctx) => {
   }
   try {
     const result = await client.queryObject<
-      { id: number; name: string; password: string }
+      { id: number; name: string; password: string; role: string }
     >(
-      "SELECT id, name, password FROM users WHERE name = $1",
+      "SELECT id, name, password, role FROM users WHERE name = $1",
       [username],
     );
 
@@ -416,7 +447,18 @@ router.post("/login", async (ctx) => {
       return;
     }
 
-    const accessToken = await signAccessToken(user.id, user.name);
+    // Promote to admin if ADMIN_USERNAME matches
+    const adminUsername = Deno.env.get("ADMIN_USERNAME");
+    if (adminUsername && user.name === adminUsername && user.role !== "admin") {
+      await client.queryArray(
+        "UPDATE users SET role = 'admin' WHERE name = $1",
+        [adminUsername]
+      );
+      user.role = "admin";
+      console.log(`User "${adminUsername}" promoted to admin at login.`);
+    }
+
+    const accessToken = await signAccessToken(user.id, user.name, user.role);
     const refreshToken = await signRefreshToken(user.id);
 
     await client.queryArray(
@@ -428,7 +470,7 @@ router.post("/login", async (ctx) => {
     await setRefreshCookie(ctx, refreshToken);
 
     ctx.response.status = 200;
-    ctx.response.body = { message: "Login successful", user: { id: user.id, name: user.name } };
+    ctx.response.body = { message: "Login successful", user: { id: user.id, name: user.name, role: user.role } };
   } catch (err) {
     console.error("Login error:", err);
     ctx.response.status = 500;
@@ -468,9 +510,9 @@ router.post("/refresh", async (ctx) => {
   }
   try {
     const result = await client.queryObject<
-      { id: number; name: string; refresh_token: string | null }
+      { id: number; name: string; refresh_token: string | null; role: string }
     >(
-      "SELECT id, name, refresh_token FROM users WHERE id = $1",
+      "SELECT id, name, refresh_token, role FROM users WHERE id = $1",
       [userId],
     );
     if (
@@ -484,7 +526,7 @@ router.post("/refresh", async (ctx) => {
     }
 
     const user = result.rows[0];
-    const newAccess = await signAccessToken(user.id, user.name);
+    const newAccess = await signAccessToken(user.id, user.name, user.role);
     await setAccessCookie(ctx, newAccess);
     ctx.response.status = 200;
     ctx.response.body = { message: "Token refreshed" };
@@ -1130,6 +1172,53 @@ router.get("/my-events", authMiddleware, async (ctx) => {
     ctx.response.body = result.rows.map((r) => r.event_id);
   } catch (err) {
     console.error("GET /my-events error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** DELETE /events/:id — delete an event (admin only) */
+router.delete("/events/:id", adminMiddleware, async (ctx) => {
+  const eventId = Number(ctx.params.id);
+
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    // Check event exists
+    const ev = await client.queryObject<{ id: number; title: string }>(
+      "SELECT id, title FROM events WHERE id = $1", [eventId]
+    );
+    if (ev.rows.length === 0) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Event not found" };
+      return;
+    }
+
+    // Delete the associated chat room first (CASCADE will handle messages)
+    await client.queryArray(
+      "DELETE FROM rooms WHERE slug = $1",
+      [`event-${eventId}`]
+    );
+
+    // Delete the event (CASCADE will delete event_participants)
+    await client.queryArray(
+      "DELETE FROM events WHERE id = $1",
+      [eventId]
+    );
+
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Event deleted" };
+
+    // Broadcast update to all users
+    broadcastToRoom("general", { type: "data_updated" });
+  } catch (err) {
+    console.error("DELETE /events/:id error:", err);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   } finally {

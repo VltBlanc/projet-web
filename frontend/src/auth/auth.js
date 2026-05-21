@@ -83,6 +83,9 @@ if (loginButton) {
           if (data.user.name) {
             localStorage.setItem('currentUser', data.user.name);
           }
+          if (data.user.role) {
+            localStorage.setItem('userRole', data.user.role);
+          }
         }
         window.location.href = 'main.html';
       } else {

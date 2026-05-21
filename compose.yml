@@ -25,6 +25,7 @@ services:
       - REFRESH_SECRET=${REFRESH_SECRET}
       - PEPPER=${PEPPER}
       - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:8080}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
     healthcheck:
             test: ["CMD", "deno", "eval", "Deno.connect({port: 8081})"]
             interval: 10s
