@@ -18,7 +18,7 @@ const sportsCategories = [
   { id: "football", name: "Football", icon: "⚽", iconClass: "fa fa-futbol-o", theme: "theme-football" },
   { id: "basket", name: "Basket", icon: "🏀", iconClass: "fa fa-dribbble", theme: "theme-basket" },
   { id: "running", name: "Running", icon: "🏃", iconClass: "fa fa-road", theme: "theme-running" },
-  { id: "tennis", name: "Tennis", icon: "🎾", iconClass: "fa fa-circle-thin", theme: "theme-tennis" },
+  { id: "tennis", name: "Tennis", icon: "🎾", iconClass: "icon-tennis-racket", theme: "theme-tennis" },
   { id: "musculation", name: "Musculation", icon: "💪", iconClass: "fa fa-trophy", theme: "theme-musculation" },
   { id: "yoga", name: "Yoga", icon: "🧘", iconClass: "fa fa-leaf", theme: "theme-yoga" },
   { id: "escalade", name: "Escalade", icon: "🧗", iconClass: "fa fa-area-chart", theme: "theme-escalade" },
@@ -108,7 +108,7 @@ async function fetchMyEvents() {
   }
 }
 
-// ── Render Feed Grid (Accueil) ──
+// ── Render Feed Grid (Accueil - Activités Tendance) ──
 function renderFeedGrid() {
   const feedGrid = document.getElementById('feed-grid');
   if (!feedGrid) {
@@ -116,14 +116,38 @@ function renderFeedGrid() {
   }
   feedGrid.innerHTML = '';
 
-  const upcomingEvents = allEvents.slice(0, 4);
+  // Sélectionner les événements tendance (futurs, non complets, triés par taux de remplissage + proximité temporelle)
+  const now = new Date();
+  const upcoming = allEvents.filter(event => {
+    const date = new Date(event.event_date);
+    const isFuture = date > now;
+    const hasSpace = Number(event.participants_count) < Number(event.capacity);
+    return isFuture && hasSpace;
+  });
 
-  if (upcomingEvents.length === 0) {
-    feedGrid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">Aucune activité récente</p>';
+  const trendingEvents = upcoming.sort((a, b) => {
+    const fillRatioA = Number(a.participants_count) / Number(a.capacity);
+    const fillRatioB = Number(b.participants_count) / Number(b.capacity);
+    
+    const timeA = new Date(a.event_date).getTime();
+    const timeB = new Date(b.event_date).getTime();
+    
+    // Proximité horaire (plus proche = score plus élevé)
+    const hoursA = Math.max((timeA - now.getTime()) / (1000 * 60 * 60), 1);
+    const hoursB = Math.max((timeB - now.getTime()) / (1000 * 60 * 60), 1);
+    
+    const scoreA = (fillRatioA * 50) + (200 / hoursA);
+    const scoreB = (fillRatioB * 50) + (200 / hoursB);
+    
+    return scoreB - scoreA;
+  }).slice(0, 4);
+
+  if (trendingEvents.length === 0) {
+    feedGrid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">Aucune activité tendance disponible pour le moment.</p>';
     return;
   }
 
-  upcomingEvents.forEach(event => {
+  trendingEvents.forEach(event => {
     const isJoined = myEventIds.has(event.id);
     const participantsCount = Number(event.participants_count);
     const card = document.createElement('div');
@@ -145,8 +169,16 @@ function renderFeedGrid() {
       joinButtonText = '✓ Inscrit';
     }
 
+    const sportNameLower = event.sport.toLowerCase();
+    const category = sportsCategories.find(c => c.name.toLowerCase() === sportNameLower);
+    const iconClass = category ? category.iconClass : 'fa fa-futbol-o';
+
     card.innerHTML = `
-      <div class="feed-image"><span class="feed-badge">${escapeHtml(event.sport)}</span></div>
+      <div class="feed-image ${sportNameLower}">
+        <span class="feed-badge">${escapeHtml(event.sport)}</span>
+        <span class="feed-trending-badge">Tendance 🔥</span>
+        <div class="feed-image-icon"><i class="${iconClass}"></i></div>
+      </div>
       <div class="feed-body">
         <div class="feed-title">${escapeHtml(event.title)}</div>
         <div class="feed-meta">📍 ${escapeHtml(event.location)} &nbsp;•&nbsp; 🕐 ${formatEventDate(event.event_date)}</div>
@@ -158,6 +190,48 @@ function renderFeedGrid() {
     feedGrid.appendChild(card);
   });
 }
+
+// ── Générer le Carrousel de Catégories Défilant ──
+function renderCategoriesMarquee() {
+  const track = document.getElementById('categories-marquee-track');
+  if (!track) return;
+  track.innerHTML = '';
+
+  const categories = sportsCategories.filter(c => c.id !== 'all');
+  const repeatCount = 3; // Répéter pour un défilement continu sans saut
+  let trackHtml = '';
+
+  for (let r = 0; r < repeatCount; r++) {
+    categories.forEach(category => {
+      trackHtml += `
+        <div class="marquee-item" onclick="handleMarqueeClick('${category.id}')" style="cursor: pointer;">
+          <span class="marquee-icon"><i class="${category.iconClass}"></i></span>
+          <span class="marquee-name">${category.name}</span>
+        </div>
+      `;
+    });
+  }
+  track.innerHTML = trackHtml;
+}
+
+// ── Gérer le Clic sur une Catégorie du Carrousel ──
+function handleMarqueeClick(categoryId) {
+  const category = sportsCategories.find(c => c.id === categoryId);
+  if (!category) return;
+
+  if (typeof window.showSection === 'function') {
+    window.showSection('events');
+  }
+
+  const mockEvent = {
+    currentTarget: document.body,
+    clientX: window.innerWidth / 2,
+    clientY: window.innerHeight / 2
+  };
+  
+  handleCategoryTileClick(mockEvent, category);
+}
+window.handleMarqueeClick = handleMarqueeClick;
 
 function createEventCardHTML(event) {
   const isJoined = myEventIds.has(event.id);
@@ -188,18 +262,25 @@ function createEventCardHTML(event) {
     actionButtonHtml = `<button class="event-btn" data-event-id="${event.id}">Rejoindre</button>`;
   }
 
+  const sportNameLower = event.sport.toLowerCase();
+  const category = sportsCategories.find(c => c.name.toLowerCase() === sportNameLower);
+  const iconClass = category ? category.iconClass : 'fa fa-futbol-o';
+
   eventDiv.innerHTML = `
-    <div class="event-header">
-      <span class="event-sport">${escapeHtml(event.sport)}</span>
-      <span class="event-date">${formatShortDate(event.event_date)}</span>
+    <div class="feed-image ${sportNameLower}">
+      <span class="feed-badge">${escapeHtml(event.sport)}</span>
+      <span class="feed-date-badge">${formatShortDate(event.event_date)}</span>
+      <div class="feed-image-icon"><i class="${iconClass}"></i></div>
     </div>
-    <div class="event-title">${escapeHtml(event.title)}</div>
-    <div class="event-location">📍 ${escapeHtml(event.location)}</div>
-    ${creatorHtml}
-    <div class="event-bar"><div style="width:${Math.min(fillPercent, 100)}%"></div></div>
-    <div class="event-footer">
-      <span class="event-spots">${participantsCount}/${event.capacity} inscrits</span>
-      ${actionButtonHtml}
+    <div class="feed-body">
+      <div class="feed-title">${escapeHtml(event.title)}</div>
+      <div class="feed-meta">📍 ${escapeHtml(event.location)}</div>
+      ${creatorHtml}
+      <div class="event-bar"><div style="width:${Math.min(fillPercent, 100)}%"></div></div>
+      <div class="feed-footer">
+        <span class="event-spots">${participantsCount}/${event.capacity} inscrits</span>
+        ${actionButtonHtml}
+      </div>
     </div>`;
   return eventDiv;
 }
@@ -793,6 +874,7 @@ function initFollowButton() {
 async function refreshAll() {
   await Promise.all([fetchAllEvents(), fetchMyEvents(), fetchFollowedCategories()]);
   renderFeedGrid();
+  renderCategoriesMarquee();
 
   const searchInput = document.getElementById('event-search');
   let searchValue = '';

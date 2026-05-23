@@ -83,6 +83,7 @@ body{
 /* -- Main content -- */
 .main-content{
   margin-left:260px; flex:1; padding:2rem; max-width:1100px;
+  overflow-x: hidden; position: relative;
 }
 .page-header{ margin-bottom:1.5rem; }
 .page-header h2{ font-size:1.6rem; margin-bottom:0.3rem; }
@@ -100,7 +101,25 @@ body{
   overflow:hidden; transition:transform .2s,box-shadow .2s; cursor:pointer;
 }
 .feed-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-lg); }
-.feed-image{ height:140px; background:linear-gradient(135deg,var(--primary),var(--accent)); position:relative; }
+.feed-image{ height:140px; background:linear-gradient(135deg,var(--primary),var(--accent)); position:relative; overflow:hidden; }
+.feed-image.football { background: linear-gradient(135deg, #1b4332, #2d6a4f); }
+.feed-image.basket { background: linear-gradient(135deg, #8f2d0a, #d05328); }
+.feed-image.running { background: linear-gradient(135deg, #7209b7, #b5179e); }
+.feed-image.tennis { background: linear-gradient(135deg, #2b9348, #55a630); }
+.feed-image.musculation { background: linear-gradient(135deg, #212529, #495057); }
+.feed-image.yoga { background: linear-gradient(135deg, #3d348b, #7678ed); }
+.feed-image.escalade { background: linear-gradient(135deg, #0077b6, #00b4d8); }
+.feed-image.cyclisme { background: linear-gradient(135deg, #134611, #3e8e41); }
+
+.feed-image-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 4rem;
+  color: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
 .feed-badge{
   position:absolute; top:0.75rem; left:0.75rem;
   background:rgba(255,255,255,0.95); color:var(--primary-dark); font-weight:700;
@@ -137,9 +156,15 @@ body{
 .events-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.25rem; }
 .event-card{
   background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow);
-  padding:1.25rem; display:flex; flex-direction:column; gap:0.75rem; transition:transform .2s;
+  overflow:hidden; display:flex; flex-direction:column; transition:transform .2s,box-shadow .2s;
 }
-.event-card:hover{ transform:translateY(-3px); box-shadow:var(--shadow-lg); }
+.event-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+.event-card .feed-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
 .event-header{ display:flex; align-items:center; justify-content:space-between; }
 .event-sport{
   background:var(--primary-light); color:var(--primary-dark); font-weight:700;
@@ -594,5 +619,222 @@ body, .sidebar, .main-content, .event-card, .events-categories-sidebar, .events-
   .event-category-tile:hover {
     transform: none;
   }
+}
+
+/* -- Accueil Rework: Hero Section, Categories Marquee, Trending Events -- */
+
+.hero-section {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.04), rgba(245, 158, 11, 0.04));
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 2.5rem;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 1rem;
+  letter-spacing: -1.5px;
+}
+
+.hero-subtitle {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  max-width: 680px;
+  margin: 0 auto 2.25rem;
+  line-height: 1.6;
+}
+
+.hero-btn {
+  padding: 0.95rem 2.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.25);
+  border-radius: 12px;
+}
+
+.categories-marquee-container {
+  margin-bottom: 3rem;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.categories-marquee {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 0.5rem 0;
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
+
+.categories-marquee-track {
+  display: flex;
+  gap: 1.75rem;
+  width: max-content;
+  animation: marqueeScroll 30s linear infinite;
+}
+
+.marquee-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.marquee-item:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-lg);
+}
+
+.marquee-item i {
+  font-size: 1.25rem;
+  color: var(--primary);
+}
+
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%); /* Repositions exactly on repeating segments */
+  }
+}
+
+.categories-marquee:hover .categories-marquee-track {
+  animation-play-state: paused;
+}
+
+.feed-trending-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: rgba(239, 68, 68, 0.92);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.25);
+  letter-spacing: 0.02em;
+}
+
+/* -- Transitions glissantes décalées (Modèle de transition de pages Vue) -- */
+
+.content-section {
+  display: none;
+  width: 100%;
+}
+
+.content-section.active {
+  display: block;
+}
+
+.content-section.page-leave-active {
+  display: block !important;
+}
+
+.content-section.page-enter-active {
+  display: block !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: inherit;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: transform 400ms cubic-bezier(0.4, 0.1, 0.7, 0.95);
+  z-index: 10;
+  background: var(--bg);
+  min-height: 100%;
+}
+
+.content-section.page-enter {
+  display: block !important;
+  transform: translateX(100%);
+}
+
+.content-section.page-enter-active .enter-1,
+.content-section.page-enter-active .enter-2,
+.content-section.page-enter-active .enter-3,
+.content-section.page-enter-active .enter-4,
+.content-section.page-enter-active .enter-5 {
+  transition: 300ms cubic-bezier(0.1, 0.7, 0.6, 0.9);
+  transition-property: opacity, transform;
+}
+
+.content-section.page-enter-active .enter-1 { transition-delay: 520ms; }
+.content-section.page-enter-active .enter-2 { transition-delay: 640ms; }
+.content-section.page-enter-active .enter-3 { transition-delay: 760ms; }
+.content-section.page-enter-active .enter-4 { transition-delay: 880ms; }
+.content-section.page-enter-active .enter-5 { transition-delay: 1000ms; }
+
+.content-section.page-enter .enter-1,
+.content-section.page-enter .enter-2,
+.content-section.page-enter .enter-3,
+.content-section.page-enter .enter-4,
+.content-section.page-enter .enter-5 {
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+/* -- Date Badge for Event Cards -- */
+.feed-date-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: rgba(31, 41, 55, 0.85);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+/* -- Custom Tennis Racket Mask Icon -- */
+.icon-tennis-racket {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' fill-rule='evenodd' d='M9 8A6 6 0 1 0 21 8A6 6 0 1 0 9 8ZM11 8A4 4 0 1 0 19 8A4 4 0 1 0 11 8Z'/%3E%3Crect x='12.5' y='4.6' width='1' height='6.8' rx='0.5' fill='black'/%3E%3Crect x='14.5' y='4' width='1' height='8' rx='0.5' fill='black'/%3E%3Crect x='16.5' y='4.6' width='1' height='6.8' rx='0.5' fill='black'/%3E%3Crect x='11.6' y='5.5' width='6.8' height='1' rx='0.5' fill='black'/%3E%3Crect x='11' y='7.5' width='8' height='1' rx='0.5' fill='black'/%3E%3Crect x='11.6' y='9.5' width='6.8' height='1' rx='0.5' fill='black'/%3E%3Cpath d='M10.5 13.2L2.5 22Q2 23 3 23.5Q4 24 4.5 23L12.5 14.2Z' fill='black'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' fill-rule='evenodd' d='M9 8A6 6 0 1 0 21 8A6 6 0 1 0 9 8ZM11 8A4 4 0 1 0 19 8A4 4 0 1 0 11 8Z'/%3E%3Crect x='12.5' y='4.6' width='1' height='6.8' rx='0.5' fill='black'/%3E%3Crect x='14.5' y='4' width='1' height='8' rx='0.5' fill='black'/%3E%3Crect x='16.5' y='4.6' width='1' height='6.8' rx='0.5' fill='black'/%3E%3Crect x='11.6' y='5.5' width='6.8' height='1' rx='0.5' fill='black'/%3E%3Crect x='11' y='7.5' width='8' height='1' rx='0.5' fill='black'/%3E%3Crect x='11.6' y='9.5' width='6.8' height='1' rx='0.5' fill='black'/%3E%3Cpath d='M10.5 13.2L2.5 22Q2 23 3 23.5Q4 24 4.5 23L12.5 14.2Z' fill='black'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  vertical-align: middle;
 }
 
