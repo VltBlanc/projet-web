@@ -5,8 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SportConnect – Accueil</title>
   <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
 </head>
 <body>
+  <!-- Overlay de transition pour le changement de thème -->
+  <div class="theme-transition-overlay" id="theme-transition-overlay"></div>
+
+  <!-- Arrière-plan d'icônes de sport flottantes -->
+  <div class="ambient-sports-backdrop" id="ambient-sports-backdrop"></div>
+
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -28,10 +35,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
         <span>Événements</span>
       </button>
-      <button class="nav-item" data-section="categories">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        <span>Catégories</span>
-      </button>
       <button class="nav-item" data-section="chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         <span>Messages</span>
@@ -41,6 +44,10 @@
         <span>Profil</span>
       </button>
     </nav>
+    <!-- Conteneur pour le logo du sport actif (en gros, en bas) -->
+    <div class="sidebar-active-sport-logo" id="sidebar-active-sport-logo">
+      <i class="fa fa-globe"></i>
+    </div>
     <button class="logout-btn" id="logout">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
       <span>Déconnexion</span>
@@ -71,16 +78,32 @@
 
     <!-- Events section -->
     <section id="events" class="content-section">
-      <div class="page-header">
-        <h2>Événements sportifs</h2>
-        <p>Rejoins ou crée une séance près de chez toi</p>
-      </div>
-      <div class="events-toolbar">
-        <input type="text" id="event-search" placeholder="Rechercher un sport, une ville...">
-        <button class="btn-primary" id="btn-create-event">+ Créer un événement</button>
-      </div>
-      <div class="events-grid" id="events-grid">
-        <!-- Events inserted by JS -->
+      <div class="events-layout">
+        <!-- Sidebar des catégories pour filtrer les événements -->
+        <aside class="events-categories-sidebar">
+          <h3>Sports</h3>
+          <div class="events-categories-list" id="events-categories-list">
+            <!-- Inséré dynamiquement par JS -->
+          </div>
+        </aside>
+
+        <!-- Contenu principal des événements -->
+        <div class="events-main-area">
+          <div class="page-header">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <h2 id="events-page-title">Événements sportifs</h2>
+              <button id="events-follow-sport-btn" class="btn-primary" style="display: none;"></button>
+            </div>
+            <p>Rejoins ou crée une séance près de chez toi</p>
+          </div>
+          <div class="events-toolbar">
+            <input type="text" id="event-search" placeholder="Rechercher un sport, une ville...">
+            <button class="btn-primary" id="btn-create-event">+ Créer un événement</button>
+          </div>
+          <div class="events-grid" id="events-grid">
+            <!-- Events inserted by JS -->
+          </div>
+        </div>
       </div>
     </section>
 
@@ -385,20 +408,25 @@
           <input type="text" id="ev-title" placeholder="Ex: Match de foot 5v5" required>
         </div>
         <div class="form-group">
-          <label for="ev-sport">Sport</label>
-          <input type="text" id="ev-sport" list="sports-list" placeholder="Ex: Football" required>
-          <datalist id="sports-list">
-            <option value="Football">
-            <option value="Basket">
-            <option value="Running">
-            <option value="Tennis">
-            <option value="Musculation">
-            <option value="Yoga">
-            <option value="Escalade">
-            <option value="Cyclisme">
-            <option value="Natation">
-            <option value="Badminton">
-          </datalist>
+          <label for="ev-sport-select">Sport</label>
+          <select id="ev-sport-select" required>
+            <option value="" disabled selected>Choisir un sport...</option>
+            <option value="Football">Football</option>
+            <option value="Basket">Basket</option>
+            <option value="Running">Running</option>
+            <option value="Tennis">Tennis</option>
+            <option value="Musculation">Musculation</option>
+            <option value="Yoga">Yoga</option>
+            <option value="Escalade">Escalade</option>
+            <option value="Cyclisme">Cyclisme</option>
+            <option value="Natation">Natation</option>
+            <option value="Badminton">Badminton</option>
+            <option value="autre">Autre (saisir manuellement)...</option>
+          </select>
+        </div>
+        <div class="form-group" id="ev-sport-custom-container" style="display: none; margin-top: 0.5rem;">
+          <label for="ev-sport-custom">Nom du sport personnalisé</label>
+          <input type="text" id="ev-sport-custom" placeholder="Ex: Canoë-kayak">
         </div>
         <div class="form-group">
           <label for="ev-location">Lieu</label>
