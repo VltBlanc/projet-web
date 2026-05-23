@@ -196,7 +196,16 @@ async function loadRooms() {
     roomItemDiv.className = itemClass;
     roomItemDiv.dataset.room = room.slug;
     
-    const initial = room.name.charAt(0).toUpperCase();
+    // Détecter le sport correspondant pour afficher le bon logo
+    const roomThemeData = getThemeForRoom(room.name);
+    const matchedCategory = roomThemeData.category;
+    
+    let avatarContent = '';
+    if (matchedCategory && matchedCategory.iconClass) {
+      avatarContent = `<i class="${matchedCategory.iconClass}"></i>`;
+    } else {
+      avatarContent = `<i class="fa fa-comments-o"></i>`;
+    }
     
     let preview = "Aucun message";
     if (room.last_message_preview) {
@@ -208,7 +217,7 @@ async function loadRooms() {
     }
 
     roomItemDiv.innerHTML = `
-      <div class="room-avatar">${escapeHtml(initial)}</div>
+      <div class="room-avatar">${avatarContent}</div>
       <div class="room-info">
         <span class="room-name">${escapeHtml(room.name)}</span>
         <span class="room-preview">${escapeHtml(preview)}</span>
