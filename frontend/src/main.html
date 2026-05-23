@@ -146,24 +146,223 @@
 
     <!-- Profile section -->
     <section id="profile" class="content-section">
-      <div class="profile-card">
-        <div class="profile-banner"></div>
-        <div class="profile-body">
-          <div class="profile-avatar-large">SC</div>
-          <h2 id="profile-username">Utilisateur</h2>
-          <p class="profile-bio">Passionné de sport et de rencontres. Rejoins-moi pour une session !</p>
-          <div class="profile-stats">
-            <div class="stat">
-              <span class="stat-value">12</span>
-              <span class="stat-label">Événements</span>
+      <div class="profile-wrapper">
+
+        <!-- Carte hero -->
+        <div class="profile-card">
+          <div class="profile-banner">
+            <div class="profile-banner-pattern"></div>
+          </div>
+          <div class="profile-body">
+            <div class="profile-top-row">
+              <div class="profile-avatar-wrap">
+                <div class="profile-avatar-large" id="profile-avatar">SC</div>
+                <span class="profile-avatar-status"></span>
+              </div>
+              <button class="btn-edit-profile" id="btn-edit-profile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                Modifier le profil
+              </button>
             </div>
-            <div class="stat">
-              <span class="stat-value">48</span>
-              <span class="stat-label">Messages</span>
+            <div class="profile-info">
+              <h2 id="profile-username">Utilisateur</h2>
+              <span class="profile-role-badge">🏅 Membre SportConnect</span>
+              <p class="profile-bio" id="profile-bio-display">Passionné de sport et de rencontres. Rejoins-moi pour une session !</p>
             </div>
-            <div class="stat">
-              <span class="stat-value">5</span>
-              <span class="stat-label">Sports</span>
+            <div class="profile-stats">
+              <div class="stat">
+                <span class="stat-value" id="stat-events">–</span>
+                <span class="stat-label">Événements</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="stat-sports">–</span>
+                <span class="stat-label">Sports suivis</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="stat-upcoming">–</span>
+                <span class="stat-label">À venir</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Onglets profil -->
+        <div class="profile-tabs" role="tablist">
+          <button class="profile-tab active" data-ptab="overview" role="tab">Aperçu</button>
+          <button class="profile-tab" data-ptab="events" role="tab">Mes événements</button>
+          <button class="profile-tab" data-ptab="sports" role="tab">Mes sports</button>
+          <button class="profile-tab" data-ptab="settings" role="tab">Paramètres</button>
+        </div>
+
+        <!-- ── Onglet : Aperçu ── -->
+        <div class="profile-tab-content active" id="ptab-overview">
+          <div class="overview-cards-row">
+            <div class="overview-stat-card">
+              <div class="osc-icon">📅</div>
+              <span class="osc-value" id="ov-events">0</span>
+              <span class="osc-label">Événements rejoints</span>
+            </div>
+            <div class="overview-stat-card">
+              <div class="osc-icon">🔥</div>
+              <span class="osc-value" id="ov-upcoming">0</span>
+              <span class="osc-label">Prochaines sessions</span>
+            </div>
+            <div class="overview-stat-card">
+              <div class="osc-icon">🏅</div>
+              <span class="osc-value" id="ov-sports">0</span>
+              <span class="osc-label">Sports pratiqués</span>
+            </div>
+          </div>
+
+          <div class="profile-section">
+            <div class="profile-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Prochains événements
+            </div>
+            <div id="upcoming-events-list"><p class="profile-empty">Chargement…</p></div>
+          </div>
+
+          <div class="profile-section">
+            <div class="profile-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              Sports suivis
+            </div>
+            <div class="profile-sports-grid" id="overview-sports-list"><p class="profile-empty">Chargement…</p></div>
+          </div>
+        </div>
+
+        <!-- ── Onglet : Événements ── -->
+        <div class="profile-tab-content" id="ptab-events">
+          <div class="profile-section">
+            <div class="profile-section-title" style="justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+              <span style="display:flex;align-items:center;gap:.5rem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Mes événements
+              </span>
+              <div class="events-filter-tabs">
+                <button class="filter-tab active" data-efilter="upcoming" id="efilter-upcoming">À venir</button>
+                <button class="filter-tab" data-efilter="past" id="efilter-past">Passés</button>
+                <button class="filter-tab" data-efilter="all" id="efilter-all">Tous</button>
+              </div>
+            </div>
+            <div id="my-events-list"><p class="profile-empty">Chargement…</p></div>
+          </div>
+        </div>
+
+        <!-- ── Onglet : Sports ── -->
+        <div class="profile-tab-content" id="ptab-sports">
+          <div class="profile-section">
+            <div class="profile-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              Mes sports &amp; catégories
+            </div>
+            <div class="profile-sports-grid large" id="my-sports-list"><p class="profile-empty">Chargement…</p></div>
+          </div>
+          <div class="profile-section">
+            <div class="profile-section-title">📊 Sports par activité</div>
+            <div class="sport-activity-list" id="sport-activity-list"><p class="profile-empty">Chargement…</p></div>
+          </div>
+        </div>
+
+        <!-- ── Onglet : Paramètres ── -->
+        <div class="profile-tab-content" id="ptab-settings">
+          <div class="profile-section">
+            <div class="profile-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Informations du compte
+            </div>
+            <div class="settings-list">
+              <div class="setting-row">
+                <div class="setting-row-info">
+                  <span class="setting-row-label">Nom d'utilisateur</span>
+                  <span class="setting-row-value" id="setting-username">–</span>
+                </div>
+                <span class="setting-locked-badge">🔒 Non modifiable</span>
+              </div>
+              <div class="setting-row">
+                <div class="setting-row-info">
+                  <span class="setting-row-label">Biographie</span>
+                  <span class="setting-row-value" id="setting-bio">–</span>
+                </div>
+                <button class="setting-edit-btn" id="btn-settings-edit-bio">Modifier</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-section">
+            <div class="profile-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Sécurité
+            </div>
+            <form class="change-password-form" id="change-password-form">
+              <div class="form-group">
+                <label for="cp-current">Mot de passe actuel</label>
+                <div class="input-pw-wrap">
+                  <input type="password" id="cp-current" placeholder="••••••••" autocomplete="current-password">
+                  <button type="button" class="toggle-pw" data-target="cp-current">👁</button>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="cp-new">Nouveau mot de passe</label>
+                  <div class="input-pw-wrap">
+                    <input type="password" id="cp-new" placeholder="••••••••" autocomplete="new-password">
+                    <button type="button" class="toggle-pw" data-target="cp-new">👁</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="cp-confirm">Confirmer</label>
+                  <div class="input-pw-wrap">
+                    <input type="password" id="cp-confirm" placeholder="••••••••" autocomplete="new-password">
+                    <button type="button" class="toggle-pw" data-target="cp-confirm">👁</button>
+                  </div>
+                </div>
+              </div>
+              <div class="pw-strength-bar" id="pw-strength-bar"><div id="pw-strength-fill"></div></div>
+              <p class="pw-strength-label" id="pw-strength-label"></p>
+              <div id="cp-msg" class="cp-message"></div>
+              <button type="submit" class="btn-primary" id="btn-change-pw">Changer mon mot de passe</button>
+            </form>
+          </div>
+
+          <div class="profile-section danger-zone">
+            <div class="profile-section-title danger-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Zone dangereuse
+            </div>
+            <p class="danger-desc">Ces actions sont irréversibles. Proceed with caution.</p>
+            <div class="danger-actions">
+              <button class="btn-danger" id="btn-logout-profile">Se déconnecter</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Modal : Modifier le profil ── -->
+      <div class="modal-overlay" id="edit-profile-modal">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Modifier le profil</h3>
+            <button class="modal-close" id="edit-profile-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-avatar-preview">
+              <div class="profile-avatar-large" id="modal-avatar-preview">SC</div>
+              <span class="modal-avatar-hint">Avatar généré depuis vos initiales</span>
+            </div>
+            <div class="form-group">
+              <label>Nom d'utilisateur</label>
+              <input type="text" id="edit-username-display" disabled style="background:var(--bg);color:var(--text-muted);cursor:not-allowed">
+            </div>
+            <div class="form-group">
+              <label for="edit-bio-input">Biographie <span style="color:var(--text-muted);font-weight:400">(max 160 car.)</span></label>
+              <textarea id="edit-bio-input" rows="3" maxlength="160" placeholder="Parle de toi et de tes sports préférés…"></textarea>
+              <span class="bio-char-count"><span id="bio-char-current">0</span>/160</span>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" id="edit-profile-cancel">Annuler</button>
+              <button class="btn-primary" id="btn-save-profile">Enregistrer</button>
             </div>
           </div>
         </div>
