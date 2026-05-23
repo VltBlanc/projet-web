@@ -644,6 +644,28 @@ function updateAmbientBackdrop(sportId) {
     }, 150);
   }
 
+  // Mettre à jour le logo du sport actif dans la grille d'événements (bas-droite)
+  const gridWatermark = document.getElementById('events-grid-sport-watermark');
+  if (gridWatermark) {
+    let gridIconClass = 'fa fa-globe'; // Par défaut
+    if (sportId !== 'all') {
+      const category = sportsCategories.find(c => c.id === sportId);
+      if (category && category.iconClass) {
+        gridIconClass = category.iconClass;
+      }
+    }
+    
+    // Animation de transition fluide (scale down, changement d'icône, scale up)
+    gridWatermark.style.transform = 'scale(0.3)';
+    gridWatermark.style.opacity = '0';
+    
+    setTimeout(() => {
+      gridWatermark.innerHTML = `<i class="${gridIconClass}"></i>`;
+      gridWatermark.style.transform = 'scale(1)';
+      gridWatermark.style.opacity = '0.12'; // Plus discret encore car il est immense
+    }, 150);
+  }
+
   const particleCount = 15;
   const availableCategories = sportsCategories.filter(c => c.id !== 'all' && c.iconClass);
 

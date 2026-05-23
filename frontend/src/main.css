@@ -55,11 +55,11 @@ body{
   display: none; /* Géré dynamiquement par JS selon l'onglet actif */
   align-items: center;
   justify-content: center;
-  margin: 3rem auto 1.5rem;
-  width: 100px;
-  height: 100px;
+  margin: 2rem auto 0.5rem;
+  width: 140px;
+  height: 140px;
   color: #1f2937;
-  font-size: 5.5rem; /* Plus gros */
+  font-size: 8rem; /* Encore plus grand! */
   pointer-events: none;
   user-select: none;
   opacity: 0.25; /* Effet filigrane discret */
@@ -201,6 +201,7 @@ body{
   width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--primary),var(--accent));
   color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;
 }
+.room-avatar i{ font-size:1.15rem; }
 .room-info{ display:flex; flex-direction:column; }
 .room-name{ font-weight:700; font-size:0.9rem; }
 .room-preview{ font-size:0.78rem; color:var(--text-muted); }
@@ -427,6 +428,22 @@ body, .sidebar, .main-content, .event-card, .events-categories-sidebar, .events-
 .events-main-area {
   flex: 1;
   min-width: 0;
+  position: relative; /* Pour positionner le filigrane de fond */
+  z-index: 1;
+}
+
+/* -- Filigrane de sport décoratif en bas à droite de la grille d'événements -- */
+.events-grid-sport-watermark {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 1.5rem;
+  font-size: 15rem; /* Très grand */
+  color: #1f2937;
+  opacity: 0.12; /* Très discret pour rester purement esthétique */
+  pointer-events: none;
+  user-select: none;
+  z-index: -1; /* Dessiné sous les cartes */
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
 /* -- Tuiles de catégorie individuelles -- */
