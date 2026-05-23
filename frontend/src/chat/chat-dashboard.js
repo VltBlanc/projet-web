@@ -214,10 +214,59 @@ async function loadRooms() {
         <span class="room-preview">${escapeHtml(preview)}</span>
       </div>`;
 
-    roomItemDiv.addEventListener("click", () => {
+    roomItemDiv.addEventListener("click", (e) => {
       if (room.slug === currentRoomSlug) {
         return;
       }
+
+      // Détecter le sport correspondant au salon de discussion
+      const roomThemeData = getThemeForRoom(room.name);
+      const targetTheme = roomThemeData.theme;
+      const matchedCategory = roomThemeData.category;
+
+      // Déclencher la transition thématique si disponible
+      if (window.triggerThemeTransition) {
+        const clickX = e.clientX || window.innerWidth / 2;
+        const clickY = e.clientY || window.innerHeight / 2;
+
+        if (window.spawnEmojiBurst && matchedCategory) {
+          window.spawnEmojiBurst(clickX, clickY, matchedCategory.icon);
+        }
+
+        window.triggerThemeTransition(clickX, clickY, targetTheme, () => {
+          if (window.sportsCategories) {
+            window.sportsCategories.forEach(c => {
+              if (c.theme) {
+                document.body.classList.remove(c.theme);
+              }
+            });
+          }
+          if (targetTheme) {
+            document.body.classList.add(targetTheme);
+          }
+          // Mettre à jour le défilement d'icônes de sport en arrière-plan
+          if (window.updateAmbientBackdrop) {
+            window.updateAmbientBackdrop(matchedCategory ? matchedCategory.id : 'all');
+          }
+        });
+      } else {
+        // Fallback sans animation
+        if (window.sportsCategories) {
+          window.sportsCategories.forEach(c => {
+            if (c.theme) {
+              document.body.classList.remove(c.theme);
+            }
+          });
+        }
+        if (targetTheme) {
+          document.body.classList.add(targetTheme);
+        }
+        // Mettre à jour le défilement d'icônes de sport en arrière-plan
+        if (window.updateAmbientBackdrop) {
+          window.updateAmbientBackdrop(matchedCategory ? matchedCategory.id : 'all');
+        }
+      }
+
       document.querySelectorAll(".room-item").forEach((element) => {
         element.classList.remove("active");
       });
@@ -286,11 +335,90 @@ chat.on("connected", () => {
   chat.joinRoom(currentRoomSlug).catch((error) => console.error("Erreur de connexion initiale :", error));
 });
 
+// Détecter le thème d'un salon (catégorie ou événement associé)
+function getThemeForRoom(roomName) {
+  if (!roomName) return { theme: "", category: null };
+  const roomNameLower = roomName.toLowerCase();
+  let matchedSportName = null;
+  
+  // 1. Essayer de faire correspondre avec le nom de l'événement dans la liste globale
+  if (window.allEvents) {
+    const matchedEvent = window.allEvents.find(e => 
+      e.title.toLowerCase() === roomNameLower || 
+      roomNameLower.includes(e.title.toLowerCase()) || 
+      e.title.toLowerCase().includes(roomNameLower)
+    );
+    if (matchedEvent) {
+      matchedSportName = matchedEvent.sport.toLowerCase();
+    }
+  }
+  
+  // 2. Chercher dans sportsCategories la catégorie correspondante
+  if (window.sportsCategories) {
+    if (matchedSportName) {
+      const category = window.sportsCategories.find(c => 
+        c.id !== 'all' && (c.name.toLowerCase() === matchedSportName || c.id === matchedSportName)
+      );
+      if (category) {
+        return { theme: category.theme, category: category };
+      }
+    }
+    
+    // Sinon, on cherche si le nom du salon contient le nom/ID d'un sport
+    const category = window.sportsCategories.find(c => 
+      c.id !== 'all' && (roomNameLower.includes(c.name.toLowerCase()) || roomNameLower.includes(c.id))
+    );
+    if (category) {
+      return { theme: category.theme, category: category };
+    }
+  }
+  
+  return { theme: "", category: null };
+}
+
+// Fonction pour appliquer le thème d'un salon directement sans transition (ex: au chargement/changement d'onglet)
+function applyRoomThemeDirect(roomName) {
+  if (!roomName) return;
+  const roomThemeData = getThemeForRoom(roomName);
+  const targetTheme = roomThemeData.theme;
+  const matchedCategory = roomThemeData.category;
+  
+  if (window.sportsCategories) {
+    window.sportsCategories.forEach(c => {
+      if (c.theme) {
+        document.body.classList.remove(c.theme);
+      }
+    });
+  }
+  
+  if (targetTheme) {
+    document.body.classList.add(targetTheme);
+  }
+
+  // Mettre à jour le défilement d'icônes de sport en arrière-plan
+  if (window.updateAmbientBackdrop) {
+    window.updateAmbientBackdrop(matchedCategory ? matchedCategory.id : 'all');
+  }
+}
+window.applyRoomThemeDirect = applyRoomThemeDirect;
+
 // ── Défilement vers le bas lors de l'accès à l'onglet de chat ─────────────────
 
 const chatNavItem = document.querySelector('.nav-item[data-section="chat"]');
 if (chatNavItem) {
   chatNavItem.addEventListener("click", () => {
+    // Appliquer le thème du salon actif lors du clic sur l'onglet chat
+    const activeRoom = document.querySelector(".room-item.active");
+    if (activeRoom) {
+      const roomName = activeRoom.querySelector(".room-name").textContent;
+      applyRoomThemeDirect(roomName);
+    } else {
+      const activeRoomTitle = document.getElementById("chat-title");
+      if (activeRoomTitle) {
+        applyRoomThemeDirect(activeRoomTitle.textContent);
+      }
+    }
+
     setTimeout(() => {
       if (chatBox) {
         chatBox.scrollTop = chatBox.scrollHeight;
