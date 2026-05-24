@@ -5,8 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SportConnect – Accueil</title>
   <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
 </head>
 <body>
+  <!-- Overlay de transition pour le changement de thème -->
+  <div class="theme-transition-overlay" id="theme-transition-overlay"></div>
+
+  <!-- Arrière-plan d'icônes de sport flottantes -->
+  <div class="ambient-sports-backdrop" id="ambient-sports-backdrop"></div>
+
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -28,10 +35,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
         <span>Événements</span>
       </button>
-      <button class="nav-item" data-section="categories">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        <span>Catégories</span>
-      </button>
       <button class="nav-item" data-section="chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         <span>Messages</span>
@@ -41,6 +44,10 @@
         <span>Profil</span>
       </button>
     </nav>
+    <!-- Conteneur pour le logo du sport actif (en gros, en bas) -->
+    <div class="sidebar-active-sport-logo" id="sidebar-active-sport-logo">
+      <i class="fa fa-globe"></i>
+    </div>
     <button class="logout-btn" id="logout">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
       <span>Déconnexion</span>
@@ -60,38 +67,77 @@
   <main class="main-content">
     <!-- Feed section -->
     <section id="feed" class="content-section active">
-      <div class="page-header">
-        <h2>Fil d'actualité</h2>
-        <p>Découvre les dernières activités de la communauté</p>
+      <!-- Hero Section / Présentation du site -->
+      <div class="hero-section">
+        <h1 class="hero-title enter-1">SportConnect</h1>
+        <p class="hero-subtitle enter-2">Votre plateforme sociale pour organiser, rejoindre et partager des activités sportives en toute simplicité. Rencontrez des passionnés de sport près de chez vous et bougez ensemble !</p>
+        <div class="hero-actions enter-3">
+          <button class="btn-primary hero-btn" onclick="showSection('events')">Explorer les Événements</button>
+        </div>
       </div>
-      <div class="feed-grid" id="feed-grid">
-        <!-- Feed items inserted by JS -->
+
+      <!-- Carrousel défilant des catégories -->
+      <div class="categories-marquee-container enter-3">
+        <h3 class="section-title">Nos Catégories</h3>
+        <div class="categories-marquee">
+          <div class="categories-marquee-track" id="categories-marquee-track">
+            <!-- Inséré dynamiquement par JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Événements tendance -->
+      <div class="trending-section enter-4">
+        <h3 class="section-title">🔥 Activités Tendance</h3>
+        <div class="feed-grid" id="feed-grid">
+          <!-- Populé dynamiquement par JS -->
+        </div>
       </div>
     </section>
 
     <!-- Events section -->
     <section id="events" class="content-section">
-      <div class="page-header">
-        <h2>Événements sportifs</h2>
-        <p>Rejoins ou crée une séance près de chez toi</p>
-      </div>
-      <div class="events-toolbar">
-        <input type="text" id="event-search" placeholder="Rechercher un sport, une ville...">
-        <button class="btn-primary" id="btn-create-event">+ Créer un événement</button>
-      </div>
-      <div class="events-grid" id="events-grid">
-        <!-- Events inserted by JS -->
+      <div class="events-layout">
+        <!-- Sidebar des catégories pour filtrer les événements -->
+        <aside class="events-categories-sidebar enter-1">
+          <h3>Sports</h3>
+          <div class="events-categories-list" id="events-categories-list">
+            <!-- Inséré dynamiquement par JS -->
+          </div>
+        </aside>
+
+        <!-- Contenu principal des événements -->
+        <div class="events-main-area">
+          <div class="page-header enter-1">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <h2 id="events-page-title">Événements sportifs</h2>
+              <button id="events-follow-sport-btn" class="btn-primary" style="display: none;"></button>
+            </div>
+            <p>Rejoins ou crée une séance près de chez toi</p>
+          </div>
+          <div class="events-toolbar enter-2">
+            <input type="text" id="event-search" placeholder="Rechercher un sport, une ville...">
+            <button class="btn-primary" id="btn-create-event">+ Créer un événement</button>
+          </div>
+          <div class="events-grid enter-3" id="events-grid">
+            <!-- Events inserted by JS -->
+          </div>
+          <!-- Filigrane de sport décoratif en bas à droite de la grille -->
+          <div class="events-grid-sport-watermark" id="events-grid-sport-watermark">
+            <i class="fa fa-globe"></i>
+          </div>
+        </div>
       </div>
     </section>
 
     <!-- Categories section -->
     <section id="categories" class="content-section">
       <div id="categories-main">
-        <div class="page-header">
+        <div class="page-header enter-1">
           <h2>Catégories</h2>
           <p>Explore les activités par sport</p>
         </div>
-        <div class="categories-grid" id="categories-grid">
+        <div class="categories-grid enter-2" id="categories-grid">
           <!-- Categories inserted by JS -->
         </div>
       </div>
@@ -116,13 +162,13 @@
     <!-- Chat section -->
     <section id="chat" class="content-section">
       <div class="chat-layout">
-        <div class="chat-sidebar">
+        <div class="chat-sidebar enter-1">
           <h3>Conversations</h3>
           <div class="chat-rooms" id="chat-rooms">
             <div class="chat-loading">Chargement des conversations…</div>
           </div>
         </div>
-        <div class="chat-main">
+        <div class="chat-main enter-2">
           <div class="chat-header">
             <span class="chat-title" id="chat-title">Général</span>
             <span class="chat-status">● En ligne</span>
@@ -135,7 +181,7 @@
             </button>
           </form>
         </div>
-        <div class="chat-users-sidebar">
+        <div class="chat-users-sidebar enter-3">
           <h3>Utilisateurs en ligne</h3>
           <ul id="users-online" class="users-online-list">
             <!-- Populated dynamically -->
@@ -150,14 +196,18 @@
 
         <!-- Carte hero -->
         <div class="profile-card">
-          <div class="profile-banner">
+          <div class="profile-banner enter-1">
             <div class="profile-banner-pattern"></div>
           </div>
           <div class="profile-body">
             <div class="profile-top-row">
               <div class="profile-avatar-wrap">
-                <div class="profile-avatar-large" id="profile-avatar">SC</div>
+                <div class="profile-avatar-large enter-2" id="profile-avatar">SC</div>
                 <span class="profile-avatar-status"></span>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                <h2 class="enter-3">Utilisateur</h2>
+                <span class="profile-role-badge">🏅 Membre SportConnect</span>
               </div>
               <button class="btn-edit-profile" id="btn-edit-profile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -385,20 +435,25 @@
           <input type="text" id="ev-title" placeholder="Ex: Match de foot 5v5" required>
         </div>
         <div class="form-group">
-          <label for="ev-sport">Sport</label>
-          <input type="text" id="ev-sport" list="sports-list" placeholder="Ex: Football" required>
-          <datalist id="sports-list">
-            <option value="Football">
-            <option value="Basket">
-            <option value="Running">
-            <option value="Tennis">
-            <option value="Musculation">
-            <option value="Yoga">
-            <option value="Escalade">
-            <option value="Cyclisme">
-            <option value="Natation">
-            <option value="Badminton">
-          </datalist>
+          <label for="ev-sport-select">Sport</label>
+          <select id="ev-sport-select" required>
+            <option value="" disabled selected>Choisir un sport...</option>
+            <option value="Football">Football</option>
+            <option value="Basket">Basket</option>
+            <option value="Running">Running</option>
+            <option value="Tennis">Tennis</option>
+            <option value="Musculation">Musculation</option>
+            <option value="Yoga">Yoga</option>
+            <option value="Escalade">Escalade</option>
+            <option value="Cyclisme">Cyclisme</option>
+            <option value="Natation">Natation</option>
+            <option value="Badminton">Badminton</option>
+            <option value="autre">Autre (saisir manuellement)...</option>
+          </select>
+        </div>
+        <div class="form-group" id="ev-sport-custom-container" style="display: none; margin-top: 0.5rem;">
+          <label for="ev-sport-custom">Nom du sport personnalisé</label>
+          <input type="text" id="ev-sport-custom" placeholder="Ex: Canoë-kayak">
         </div>
         <div class="form-group">
           <label for="ev-location">Lieu</label>
@@ -423,7 +478,6 @@
           <button type="submit" class="btn-primary">Créer l'événement</button>
         </div>
       </form>
-    </div>
   </div>
 
   <script src="events/events.js"></script>
