@@ -587,6 +587,9 @@
 
   // ── Créer un événement ──
   async function createEvent(formData) {
+    const errorDiv = document.getElementById("create-event-error");
+    const errorText = document.getElementById("create-event-error-text");
+    
     try {
       const response = await apiFetch("/events", {
         method: "POST",
@@ -595,13 +598,23 @@
       if (!response) return false;
       if (!response.ok) {
         const errorData = await response.json();
-        alert(errorData.error || "Erreur lors de la création");
+        if (errorDiv && errorText) {
+          errorText.textContent = errorData.error || "Erreur lors de la création de l'événement";
+          errorDiv.style.display = "flex";
+        } else {
+          alert(errorData.error || "Erreur lors de la création");
+        }
         return false;
       }
+      if (errorDiv) errorDiv.style.display = "none";
       await refreshAll();
       return true;
     } catch (error) {
       console.error("Create event error:", error);
+      if (errorDiv && errorText) {
+        errorText.textContent = "Erreur de connexion avec le serveur.";
+        errorDiv.style.display = "flex";
+      }
       return false;
     }
   }
@@ -634,11 +647,26 @@
       });
     }
 
-    openButton.addEventListener("click", () => modal.classList.add("active"));
+    openButton.addEventListener("click", () => {
+      modal.classList.add("active");
+      const dateInput = form.querySelector("#ev-date");
+      if (dateInput) {
+        // Empêcher de sélectionner une date antérieure à aujourd'hui
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        let mm = today.getMonth() + 1;
+        let dd = today.getDate();
+        if (dd < 10) dd = '0' + dd;
+        if (mm < 10) mm = '0' + mm;
+        dateInput.min = yyyy + '-' + mm + '-' + dd;
+      }
+    });
 
     function closeModal() {
       modal.classList.remove("active");
       form.reset();
+      const errorDiv = document.getElementById("create-event-error");
+      if (errorDiv) errorDiv.style.display = "none";
       if (customContainer) customContainer.style.display = "none";
       if (customInput) customInput.required = false;
     }
@@ -678,7 +706,14 @@
         !timeValue ||
         !formData.capacity
       ) {
-        alert("Tous les champs sont obligatoires");
+        const errorDiv = document.getElementById("create-event-error");
+        const errorText = document.getElementById("create-event-error-text");
+        if (errorDiv && errorText) {
+          errorText.textContent = "Tous les champs sont obligatoires";
+          errorDiv.style.display = "flex";
+        } else {
+          alert("Tous les champs sont obligatoires");
+        }
         return;
       }
 

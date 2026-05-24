@@ -459,6 +459,12 @@
           <label for="ev-location">Lieu</label>
           <input type="text" id="ev-location" placeholder="Ex: Stade Municipal, Lyon" required>
         </div>
+        
+        <div id="create-event-error" style="display: none; background: #fef2f2; color: #dc2626; padding: 0.75rem; border-radius: 8px; border: 1px solid #fecaca; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <span id="create-event-error-text">Message d'erreur</span>
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="ev-date">Date</label>

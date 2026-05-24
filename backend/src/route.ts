@@ -1063,6 +1063,19 @@ router.post("/events", authMiddleware, async (ctx) => {
     return;
   }
 
+  // Reject events with a past date
+  const eventDateParsed = new Date(event_date as string);
+  if (isNaN(eventDateParsed.getTime())) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Format de date invalide" };
+    return;
+  }
+  if (eventDateParsed <= new Date()) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "La date de l'événement doit être dans le futur" };
+    return;
+  }
+
   const userId = Number(ctx.state.user.sub);
   let client: Client;
   try { client = await getClient(); } catch {
