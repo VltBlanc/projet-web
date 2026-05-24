@@ -170,6 +170,25 @@ export async function initDb(): Promise<void> {
       }
       console.log("Seeded", seeds.length, "automatic events.");
     }
+    // ── Default admin user ────────────────────────────────────────────
+    const adminUsername = Deno.env.get("ADMIN_USERNAME");
+    if (adminUsername) {
+      const existingAdmin = await client.queryObject<{ id: number }>(
+        "SELECT id FROM users WHERE name = $1",
+        [adminUsername]
+      );
+      if (existingAdmin.rows.length === 0) {
+        const hashedPassword = await hashPassword(adminUsername);
+        await client.queryArray(
+          "INSERT INTO users (name, password, role) VALUES ($1, $2, 'admin')",
+          [adminUsername, hashedPassword]
+        );
+        console.log(`Default admin user "${adminUsername}" created (password = username).`);
+      } else {
+        console.log(`Admin user "${adminUsername}" already exists, skipping creation.`);
+      }
+    }
+
     console.log("DB schema ready.");
   } finally {
     await client.end();
@@ -755,6 +774,58 @@ router.get("/rooms/:slug/messages", authMiddleware, async (ctx) => {
   }
 });
 
+// ── Message Admin Routes ───────────────────────────────────────────────────────
+
+/** DELETE /messages/:id — delete a message (admin only) */
+router.delete("/messages/:id", adminMiddleware, async (ctx) => {
+  const messageId = Number(ctx.params.id);
+
+  let client: Client;
+  try { client = await getClient(); } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    // Check message exists
+    const msg = await client.queryObject<{ id: number; room_id: number }>(
+      "SELECT id, room_id FROM messages WHERE id = $1",
+      [messageId]
+    );
+    if (msg.rows.length === 0) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Message not found" };
+      return;
+    }
+
+    // Delete the message
+    await client.queryArray(
+      "DELETE FROM messages WHERE id = $1",
+      [messageId]
+    );
+
+    // Get the room slug to notify clients
+    const room = await client.queryObject<{ slug: string }>(
+      "SELECT slug FROM rooms WHERE id = $1",
+      [msg.rows[0].room_id]
+    );
+
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Message deleted" };
+
+    // Broadcast deletion to all users in the room
+    if (room.rows.length > 0) {
+      broadcastToRoom(room.rows[0].slug, { type: "message_deleted", id: messageId });
+    }
+  } catch (err) {
+    console.error("DELETE /messages/:id error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
 // ── Categories REST ──────────────────────────────────────────────────────────
 
 /** GET /categories/followed */
@@ -1119,6 +1190,7 @@ router.post("/events", authMiddleware, async (ctx) => {
   }
 
   const userId = Number(ctx.state.user.sub);
+  const isAdmin = ctx.state.user.role === "admin";
   let client: Client;
   try { client = await getClient(); } catch {
     ctx.response.status = 500;
@@ -1128,8 +1200,8 @@ router.post("/events", authMiddleware, async (ctx) => {
   try {
     const result = await client.queryObject<{ id: number }>(
       `INSERT INTO events (title, sport, location, event_date, capacity, creator_id, is_automatic)
-       VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING id`,
-      [title, sport, location, event_date, capacity, userId]
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [title, sport, location, event_date, capacity, userId, isAdmin]
     );
     const eventId = result.rows[0].id;
 
