@@ -5,18 +5,49 @@ const sidebar = document.getElementById("sidebar");
 const menuToggleButton = document.getElementById("menu-toggle");
 
 function showSection(sectionId) {
-  contentSections.forEach((section) => section.classList.remove("active"));
-  navigationItems.forEach((navItem) => navItem.classList.remove("active"));
+  const outgoingSection = document.querySelector(".content-section.active") || document.querySelector(".content-section.page-enter-active");
+  const incomingSection = document.getElementById(sectionId);
 
-  const targetSection = document.getElementById(sectionId);
-  if (targetSection) {
-    targetSection.classList.add("active");
+  if (!incomingSection) return;
+  if (incomingSection === outgoingSection) return;
+
+  // Annuler le timeout existant pour éviter les conflits d'états
+  if (window.showSectionTimeout) {
+    clearTimeout(window.showSectionTimeout);
+    window.showSectionTimeout = null;
   }
 
+  // Nettoyer immédiatement toutes les classes de transition sur toutes les sections
+  contentSections.forEach((section) => {
+    section.classList.remove("page-enter", "page-enter-active", "page-leave-active");
+  });
+
+  // Activer le bon bouton de navigation
+  navigationItems.forEach((navItem) => navItem.classList.remove("active"));
   const activeNavItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
   if (activeNavItem) {
     activeNavItem.classList.add("active");
   }
+
+  // L'ancienne section active reste visible en arrière-plan pendant la transition
+  if (outgoingSection) {
+    outgoingSection.classList.remove("active");
+    outgoingSection.classList.add("page-leave-active");
+  }
+
+  // Déclencher la transition glissante décalée (modèle Vue page transition)
+  incomingSection.classList.add("page-enter");
+  incomingSection.offsetWidth; // Forcer le reflow
+  incomingSection.classList.add("page-enter-active");
+  incomingSection.classList.remove("page-enter");
+
+  window.showSectionTimeout = setTimeout(() => {
+    contentSections.forEach((section) => {
+      section.classList.remove("page-enter", "page-enter-active", "page-leave-active");
+    });
+    incomingSection.classList.add("active");
+    window.showSectionTimeout = null;
+  }, 1300);
 
   // Afficher le logo du sport dans la barre latérale uniquement pour l'onglet Événements
   const sidebarLogo = document.getElementById("sidebar-active-sport-logo");
@@ -80,6 +111,7 @@ function showSection(sectionId) {
     }
   }
 }
+window.showSection = showSection;
 
 navigationItems.forEach((navItem) => {
   navItem.addEventListener("click", () => showSection(navItem.dataset.section));

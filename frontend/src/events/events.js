@@ -12,6 +12,7 @@
   let allEvents = [];
   let myEventIds = new Set();
   let currentSportFilter = "all";
+  let followedCategories = [];
 
   const sportsCategories = [
     {
@@ -87,20 +88,14 @@
   }
 
   async function apiFetch(path, options) {
-    if (!options) {
-      options = {};
-    }
+    if (!options) options = {};
     const requestOptions = {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
     };
-    // Fusionner les options passées en paramètre
-    if (options.method) {
-      requestOptions.method = options.method;
-    }
-    if (options.body) {
-      requestOptions.body = options.body;
-    }
+    if (options.method) requestOptions.method = options.method;
+    if (options.body) requestOptions.body = options.body;
+
     const response = await fetch(`${apiBaseUrl}${path}`, requestOptions);
     if (response.status === 401) {
       window.location.href = "login.html";
@@ -147,11 +142,9 @@
   async function fetchAllEvents() {
     try {
       const response = await apiFetch("/events");
-      if (!response) {
-        return;
-      }
+      if (!response) return;
       allEvents = await response.json();
-      window.allEvents = allEvents; // Exposer pour les autres modules
+      window.allEvents = allEvents;
     } catch (error) {
       console.error("Failed to fetch events:", error);
       allEvents = [];
@@ -162,9 +155,7 @@
   async function fetchMyEvents() {
     try {
       const response = await apiFetch("/my-events");
-      if (!response) {
-        return;
-      }
+      if (!response) return;
       const data = await response.json();
       myEventIds = new Set(data.map((id) => Number(id)));
     } catch (error) {
@@ -173,23 +164,57 @@
     }
   }
 
-  // ── Render Feed Grid (Accueil) ──
+  async function fetchFollowedCategories() {
+    try {
+      const response = await fetch(`${apiBaseUrl}/categories/followed`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        followedCategories = await response.json();
+      }
+    } catch (error) {
+      console.error("Error fetching followed categories:", error);
+    }
+  }
+
+  // ── Render Feed Grid (Accueil - Activités Tendance) ──
   function renderFeedGrid() {
     const feedGrid = document.getElementById("feed-grid");
-    if (!feedGrid) {
-      return;
-    }
+    if (!feedGrid) return;
     feedGrid.innerHTML = "";
 
-    const upcomingEvents = allEvents.slice(0, 4);
+    const now = new Date();
+    const upcoming = allEvents.filter((event) => {
+      const date = new Date(event.event_date);
+      const isFuture = date > now;
+      const hasSpace =
+        Number(event.participants_count) < Number(event.capacity);
+      return isFuture && hasSpace;
+    });
 
-    if (upcomingEvents.length === 0) {
+    const trendingEvents = upcoming
+      .sort((a, b) => {
+        const fillRatioA =
+          Number(a.participants_count) / Number(a.capacity || 1);
+        const fillRatioB =
+          Number(b.participants_count) / Number(b.capacity || 1);
+        const timeA = new Date(a.event_date).getTime();
+        const timeB = new Date(b.event_date).getTime();
+        const hoursA = Math.max((timeA - now.getTime()) / (1000 * 60 * 60), 1);
+        const hoursB = Math.max((timeB - now.getTime()) / (1000 * 60 * 60), 1);
+        const scoreA = fillRatioA * 50 + 200 / hoursA;
+        const scoreB = fillRatioB * 50 + 200 / hoursB;
+        return scoreB - scoreA;
+      })
+      .slice(0, 4);
+
+    if (trendingEvents.length === 0) {
       feedGrid.innerHTML =
-        '<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">Aucune activité récente</p>';
+        '<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">Aucune activité tendance disponible pour le moment.</p>';
       return;
     }
 
-    upcomingEvents.forEach((event) => {
+    trendingEvents.forEach((event) => {
       const isJoined = myEventIds.has(event.id);
       const participantsCount = Number(event.participants_count);
       const card = document.createElement("div");
@@ -200,9 +225,8 @@
       for (let i = 0; i < avatarLimit; i++) {
         avatarsHtml += `<div class="avatar">U${i + 1}</div>`;
       }
-      if (participantsCount > 4) {
+      if (participantsCount > 4)
         avatarsHtml += `<div class="avatar">+${participantsCount - 4}</div>`;
-      }
 
       let joinButtonClass = "join-btn";
       let joinButtonText = "Rejoindre";
@@ -211,8 +235,18 @@
         joinButtonText = "✓ Inscrit";
       }
 
+      const sportNameLower = (event.sport || "").toLowerCase();
+      const category = sportsCategories.find(
+        (c) => c.name.toLowerCase() === sportNameLower,
+      );
+      const iconClass = category ? category.iconClass : "fa fa-futbol-o";
+
       card.innerHTML = `
-      <div class="feed-image"><span class="feed-badge">${escapeHtml(event.sport)}</span></div>
+      <div class="feed-image ${sportNameLower}">
+        <span class="feed-badge">${escapeHtml(event.sport)}</span>
+        <span class="feed-trending-badge">Tendance 🔥</span>
+        <div class="feed-image-icon"><i class="${iconClass}"></i></div>
+      </div>
       <div class="feed-body">
         <div class="feed-title">${escapeHtml(event.title)}</div>
         <div class="feed-meta">📍 ${escapeHtml(event.location)} &nbsp;•&nbsp; 🕐 ${formatEventDate(event.event_date)}</div>
@@ -221,28 +255,70 @@
           <button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>
         </div>
       </div>`;
+
       feedGrid.appendChild(card);
     });
   }
 
+  // ── Générer le Carrousel de Catégories Défilant ──
+  function renderCategoriesMarquee() {
+    const track = document.getElementById("categories-marquee-track");
+    if (!track) return;
+    track.innerHTML = "";
+
+    const categories = sportsCategories.filter((c) => c.id !== "all");
+    const repeatCount = 3;
+    let trackHtml = "";
+
+    for (let r = 0; r < repeatCount; r++) {
+      categories.forEach((category) => {
+        trackHtml += `
+        <div class="marquee-item" onclick="handleMarqueeClick('${category.id}')" style="cursor: pointer;">
+          <span class="marquee-icon"><i class="${category.iconClass}"></i></span>
+          <span class="marquee-name">${category.name}</span>
+        </div>
+      `;
+      });
+    }
+    track.innerHTML = trackHtml;
+  }
+
+  // ── Gérer le Clic sur une Catégorie du Carrousel ──
+  function handleMarqueeClick(categoryId) {
+    const category = sportsCategories.find((c) => c.id === categoryId);
+    if (!category) return;
+
+    if (typeof window.showSection === "function") {
+      window.showSection("events");
+    }
+
+    const mockEvent = {
+      currentTarget: document.body,
+      clientX: window.innerWidth / 2,
+      clientY: window.innerHeight / 2,
+    };
+
+    handleCategoryTileClick(mockEvent, category);
+  }
+  window.handleMarqueeClick = handleMarqueeClick;
+
+  // ── Créer la carte d'un événement (utilisée dans la grille des événements) ──
   function createEventCardHTML(event) {
     const isJoined = myEventIds.has(event.id);
     const participantsCount = Number(event.participants_count);
-    const fillPercent = (participantsCount / event.capacity) * 100;
+    const fillPercent = (participantsCount / (event.capacity || 1)) * 100;
     const isFull = participantsCount >= event.capacity;
 
     const eventDiv = document.createElement("div");
     let cardClass = "event-card";
-    if (isJoined) {
-      cardClass = "event-card event-joined";
-    }
+    if (isJoined) cardClass = "event-card event-joined";
     eventDiv.className = cardClass;
 
     let creatorHtml = "";
     if (event.is_automatic) {
       creatorHtml = '<div class="event-auto-badge">⚡ Automatique</div>';
     } else {
-      creatorHtml = `<div class="event-creator">👤 ${escapeHtml(event.creator_name)}</div>`;
+      creatorHtml = `<div class="event-creator">👤 ${escapeHtml(event.creator_name || "")}</div>`;
     }
 
     let actionButtonHtml = "";
@@ -254,35 +330,41 @@
       actionButtonHtml = `<button class="event-btn" data-event-id="${event.id}">Rejoindre</button>`;
     }
 
+    const sportNameLower = (event.sport || "").toLowerCase();
+    const category = sportsCategories.find(
+      (c) => c.name.toLowerCase() === sportNameLower,
+    );
+    const iconClass = category ? category.iconClass : "fa fa-futbol-o";
+
     eventDiv.innerHTML = `
-    <div class="event-header">
-      <span class="event-sport">${escapeHtml(event.sport)}</span>
-      <span class="event-date">${formatShortDate(event.event_date)}</span>
+    <div class="feed-image ${sportNameLower}">
+      <span class="feed-badge">${escapeHtml(event.sport || "")}</span>
+      <span class="feed-date-badge">${formatShortDate(event.event_date)}</span>
+      <div class="feed-image-icon"><i class="${iconClass}"></i></div>
     </div>
-    <div class="event-title">${escapeHtml(event.title)}</div>
-    <div class="event-location">📍 ${escapeHtml(event.location)}</div>
-    ${creatorHtml}
-    <div class="event-bar"><div style="width:${Math.min(fillPercent, 100)}%"></div></div>
-    <div class="event-footer">
-      <span class="event-spots">${participantsCount}/${event.capacity} inscrits</span>
-      ${actionButtonHtml}
+    <div class="feed-body">
+      <div class="feed-title">${escapeHtml(event.title || "")}</div>
+      <div class="feed-meta">📍 ${escapeHtml(event.location || "")}</div>
+      ${creatorHtml}
+      <div class="event-bar"><div style="width:${Math.min(fillPercent, 100)}%"></div></div>
+      <div class="feed-footer">
+        <span class="event-spots">${participantsCount}/${event.capacity || 0} inscrits</span>
+        ${actionButtonHtml}
+      </div>
     </div>`;
+
     return eventDiv;
   }
 
   // ── Render Events Grid (Événements) ──
   function renderEventsGrid(filter) {
-    if (!filter) {
-      filter = "";
-    }
+    if (!filter) filter = "";
     const eventsGrid = document.getElementById("events-grid");
-    if (!eventsGrid) {
-      return;
-    }
+    if (!eventsGrid) return;
     eventsGrid.innerHTML = "";
 
     const lowerFilter = filter.toLowerCase();
-    let filteredEvents = allEvents;
+    let filteredEvents = allEvents.slice();
 
     // Filtrer d'abord par catégorie de sport active
     if (currentSportFilter !== "all") {
@@ -299,12 +381,13 @@
 
     // Filtrer ensuite par le texte recherché
     if (lowerFilter) {
-      filteredEvents = filteredEvents.filter(
-        (event) =>
-          event.title.toLowerCase().includes(lowerFilter) ||
-          event.sport.toLowerCase().includes(lowerFilter) ||
-          event.location.toLowerCase().includes(lowerFilter),
-      );
+      filteredEvents = filteredEvents.filter((event) => {
+        return (
+          (event.title || "").toLowerCase().includes(lowerFilter) ||
+          (event.sport || "").toLowerCase().includes(lowerFilter) ||
+          (event.location || "").toLowerCase().includes(lowerFilter)
+        );
+      });
     }
 
     if (filteredEvents.length === 0) {
@@ -325,15 +408,12 @@
     listContainer.innerHTML = "";
 
     sportsCategories.forEach((category) => {
-      // Calculer le nombre d'événements pour cette catégorie
       let count = 0;
-      if (category.id === "all") {
-        count = allEvents.length;
-      } else {
+      if (category.id === "all") count = allEvents.length;
+      else
         count = allEvents.filter(
           (e) => e.sport.toLowerCase() === category.name.toLowerCase(),
         ).length;
-      }
 
       const tile = document.createElement("div");
       tile.className = `event-category-tile${currentSportFilter === category.id ? " active" : ""}`;
@@ -369,14 +449,10 @@
     triggerThemeTransition(clickX, clickY, category.theme, () => {
       // Changement de classe de thème à mi-chemin
       sportsCategories.forEach((c) => {
-        if (c.theme) {
-          document.body.classList.remove(c.theme);
-        }
+        if (c.theme) document.body.classList.remove(c.theme);
       });
 
-      if (category.theme) {
-        document.body.classList.add(category.theme);
-      }
+      if (category.theme) document.body.classList.add(category.theme);
 
       // Mettre à jour le filtre de sport actif
       currentSportFilter = category.id;
@@ -386,9 +462,8 @@
       updateFollowButton();
 
       // Mettre à jour l'arrière-plan d'icônes
-      if (window.updateAmbientBackdrop) {
+      if (window.updateAmbientBackdrop)
         window.updateAmbientBackdrop(category.id);
-      }
 
       // Actualiser le rendu de la barre latérale des catégories et de la grille
       renderSportCategoriesList();
@@ -408,7 +483,6 @@
       particle.className = "emoji-burst-particle";
       particle.textContent = emoji;
 
-      // Angle aléatoire sur 360° et distance de propulsion aléatoire
       const angle = Math.random() * Math.PI * 2;
       const distance = 80 + Math.random() * 120;
       const dx = Math.cos(angle) * distance;
@@ -423,7 +497,6 @@
 
       container.appendChild(particle);
 
-      // Supprimer la particule après l'animation (400ms)
       setTimeout(() => {
         particle.remove();
       }, 400);
@@ -434,11 +507,10 @@
   function triggerThemeTransition(x, y, newTheme, midwayCallback) {
     const overlay = document.getElementById("theme-transition-overlay");
     if (!overlay) {
-      midwayCallback();
+      if (midwayCallback) midwayCallback();
       return;
     }
 
-    // Associer le fond translucide en dégradé linéaire vertical (de haut en bas) neutre
     let targetTranslucentBg =
       "linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.02))";
     overlay.style.setProperty("--bg-new-translucent", targetTranslucentBg);
@@ -446,23 +518,17 @@
     overlay.classList.remove("animating", "fade-out");
     overlay.style.display = "block";
 
-    // Forcer le reflow
-    overlay.offsetWidth;
-
-    // Lancer le glissement vertical
+    overlay.offsetWidth; // reflow
     overlay.classList.add("animating");
 
-    // Callback à mi-chemin de la descente pour appliquer le thème (180ms)
     setTimeout(() => {
       if (midwayCallback) midwayCallback();
     }, 180);
 
-    // Début du fade-out de l'overlay après complétion du glissement (400ms)
     setTimeout(() => {
       overlay.classList.add("fade-out");
     }, 400);
 
-    // Cacher et réinitialiser l'overlay après le fondu (600ms)
     setTimeout(() => {
       overlay.style.display = "none";
       overlay.classList.remove("animating", "fade-out");
@@ -471,9 +537,7 @@
 
   window.renderCategoryEvents = function (sportName) {
     const container = document.getElementById("category-events-grid");
-    if (!container) {
-      return;
-    }
+    if (!container) return;
     container.innerHTML = "";
 
     const filteredEvents = allEvents.filter(
@@ -497,9 +561,7 @@
       const response = await apiFetch(`/events/${eventId}/join`, {
         method: "POST",
       });
-      if (!response) {
-        return;
-      }
+      if (!response) return;
       if (!response.ok) {
         const errorData = await response.json();
         alert(errorData.error || "Erreur lors de l'inscription");
@@ -516,9 +578,7 @@
       const response = await apiFetch(`/events/${eventId}/leave`, {
         method: "POST",
       });
-      if (!response) {
-        return;
-      }
+      if (!response) return;
       await refreshAll();
     } catch (error) {
       console.error("Leave error:", error);
@@ -532,9 +592,7 @@
         method: "POST",
         body: JSON.stringify(formData),
       });
-      if (!response) {
-        return false;
-      }
+      if (!response) return false;
       if (!response.ok) {
         const errorData = await response.json();
         alert(errorData.error || "Erreur lors de la création");
@@ -556,11 +614,8 @@
     const cancelButton = document.getElementById("modal-cancel");
     const form = document.getElementById("create-event-form");
 
-    if (!modal || !openButton || !form) {
-      return;
-    }
+    if (!modal || !openButton || !form) return;
 
-    // Gérer la liste déroulante et le champ personnalisé
     const sportSelect = form.querySelector("#ev-sport-select");
     const customContainer = form.querySelector("#ev-sport-custom-container");
     const customInput = form.querySelector("#ev-sport-custom");
@@ -579,31 +634,20 @@
       });
     }
 
-    openButton.addEventListener("click", () => {
-      modal.classList.add("active");
-    });
+    openButton.addEventListener("click", () => modal.classList.add("active"));
 
     function closeModal() {
       modal.classList.remove("active");
       form.reset();
-      if (customContainer) {
-        customContainer.style.display = "none";
-      }
-      if (customInput) {
-        customInput.required = false;
-      }
+      if (customContainer) customContainer.style.display = "none";
+      if (customInput) customInput.required = false;
     }
 
-    if (closeButton) {
-      closeButton.addEventListener("click", closeModal);
-    }
-    if (cancelButton) {
-      cancelButton.addEventListener("click", closeModal);
-    }
+    if (closeButton) closeButton.addEventListener("click", closeModal);
+    if (cancelButton) cancelButton.addEventListener("click", closeModal);
+
     modal.addEventListener("click", (event) => {
-      if (event.target === modal) {
-        closeModal();
-      }
+      if (event.target === modal) closeModal();
     });
 
     form.addEventListener("submit", async (event) => {
@@ -611,14 +655,11 @@
       const dateValue = form.querySelector("#ev-date").value.trim();
       const timeValue = form.querySelector("#ev-time").value.trim();
 
-      // Récupérer la valeur finale du sport (predefini ou custom)
       let finalSport = "";
       if (sportSelect) {
-        if (sportSelect.value === "autre" && customInput) {
+        if (sportSelect.value === "autre" && customInput)
           finalSport = customInput.value.trim();
-        } else {
-          finalSport = sportSelect.value;
-        }
+        else finalSport = sportSelect.value;
       }
 
       const formData = {
@@ -642,9 +683,7 @@
       }
 
       const success = await createEvent(formData);
-      if (success) {
-        closeModal();
-      }
+      if (success) closeModal();
     });
   }
 
@@ -654,18 +693,14 @@
       const joinButton = event.target.closest(".join-btn:not(.joined)");
       if (joinButton) {
         const eventId = Number(joinButton.dataset.eventId);
-        if (eventId) {
-          await joinEvent(eventId);
-        }
+        if (eventId) await joinEvent(eventId);
         return;
       }
 
       const joinedButton = event.target.closest(".join-btn.joined");
       if (joinedButton) {
         const eventId = Number(joinedButton.dataset.eventId);
-        if (eventId) {
-          await leaveEvent(eventId);
-        }
+        if (eventId) await leaveEvent(eventId);
         return;
       }
 
@@ -675,9 +710,7 @@
       if (eventJoinButton) {
         if (eventJoinButton.dataset.eventId) {
           const eventId = Number(eventJoinButton.dataset.eventId);
-          if (eventId) {
-            await joinEvent(eventId);
-          }
+          if (eventId) await joinEvent(eventId);
         }
         return;
       }
@@ -685,9 +718,7 @@
       const leaveButton = event.target.closest(".event-btn-leave");
       if (leaveButton) {
         const eventId = Number(leaveButton.dataset.eventId);
-        if (eventId) {
-          await leaveEvent(eventId);
-        }
+        if (eventId) await leaveEvent(eventId);
         return;
       }
     });
@@ -707,52 +738,41 @@
   function updateAmbientBackdrop(sportId) {
     const backdrop = document.getElementById("ambient-sports-backdrop");
     if (!backdrop) return;
-
-    // Vider le contenu précédent
     backdrop.innerHTML = "";
 
-    // Normaliser le sport sélectionné
     if (!sportId) sportId = "all";
 
-    // Mettre à jour le logo du sport actif dans la grille d'événements (bas-droite)
     const gridWatermark = document.getElementById(
       "events-grid-sport-watermark",
     );
     if (gridWatermark) {
-      let gridIconClass = "fa fa-globe"; // Par défaut
+      let gridIconClass = "fa fa-globe";
       if (sportId !== "all") {
         const category = sportsCategories.find((c) => c.id === sportId);
         if (category && category.iconClass) gridIconClass = category.iconClass;
       }
-
-      // Animation de transition fluide (scale down, changement d'icône, scale up)
       gridWatermark.style.transform = "scale(0.3)";
       gridWatermark.style.opacity = "0";
 
       setTimeout(() => {
         gridWatermark.innerHTML = `<i class="${gridIconClass}"></i>`;
         gridWatermark.style.transform = "scale(1)";
-        gridWatermark.style.opacity = "0.12"; // Plus discret encore car il est immense
+        gridWatermark.style.opacity = "0.12";
       }, 150);
     }
 
-    // Mettre à jour le logo du sport actif dans la barre latérale nav
     const sidebarLogoContainer = document.getElementById(
       "sidebar-active-sport-logo",
     );
     if (sidebarLogoContainer) {
-      let sidebarIconClass = "fa fa-globe"; // Par défaut
+      let sidebarIconClass = "fa fa-globe";
       if (sportId !== "all") {
         const category = sportsCategories.find((c) => c.id === sportId);
-        if (category && category.iconClass) {
+        if (category && category.iconClass)
           sidebarIconClass = category.iconClass;
-        }
       }
-
-      // Animation de transition fluide (scale down, changement d'icône, scale up)
       sidebarLogoContainer.style.transform = "scale(0.3)";
       sidebarLogoContainer.style.opacity = "0";
-
       setTimeout(() => {
         sidebarLogoContainer.innerHTML = `<i class="${sidebarIconClass}"></i>`;
         sidebarLogoContainer.style.transform = "scale(1)";
@@ -760,7 +780,6 @@
       }, 150);
     }
 
-    // Particules d'icônes flottantes
     const particleCount = 15;
     const availableCategories = sportsCategories.filter(
       (c) => c.id !== "all" && c.iconClass,
@@ -775,9 +794,7 @@
               Math.floor(Math.random() * availableCategories.length)
             ];
           iconClass = randCat.iconClass;
-        } else {
-          continue;
-        }
+        } else continue;
       } else {
         const category = sportsCategories.find((c) => c.id === sportId);
         if (!category || !category.iconClass) continue;
@@ -787,11 +804,10 @@
       const iconEl = document.createElement("i");
       iconEl.className = `${iconClass} floating-background-icon`;
 
-      // Position initiale aléatoire et dérive
       const left = Math.random() * 100;
-      const size = 3 + Math.random() * 5; // 3rem à 8rem
-      const duration = 20 + Math.random() * 25; // 20s à 45s
-      const delay = -(Math.random() * duration); // Décaler le démarrage des animations uniformément
+      const size = 3 + Math.random() * 5;
+      const duration = 20 + Math.random() * 25;
+      const delay = -(Math.random() * duration);
       const driftX = -100 + Math.random() * 200;
 
       iconEl.style.setProperty("--left", `${left}%`);
@@ -806,21 +822,6 @@
   window.updateAmbientBackdrop = updateAmbientBackdrop;
 
   // ── Suivi des catégories de sport dans la page événements ──
-  let followedCategories = [];
-
-  async function fetchFollowedCategories() {
-    try {
-      const response = await fetch(`${apiBaseUrl}/categories/followed`, {
-        credentials: "include",
-      });
-      if (response.ok) {
-        followedCategories = await response.json();
-      }
-    } catch (error) {
-      console.error("Error fetching followed categories:", error);
-    }
-  }
-
   function updateFollowButton() {
     const followBtn = document.getElementById("events-follow-sport-btn");
     const pageTitle = document.getElementById("events-page-title");
@@ -857,7 +858,6 @@
 
     followBtn.addEventListener("click", async () => {
       if (currentSportFilter === "all") return;
-
       const selectedCategory = sportsCategories.find(
         (c) => c.id === currentSportFilter,
       );
@@ -867,32 +867,23 @@
       const isFollowing = followedCategories.includes(categoryId);
 
       let method = "POST";
-      if (isFollowing) {
-        method = "DELETE";
-      }
+      if (isFollowing) method = "DELETE";
 
       try {
         const response = await fetch(
           `${apiBaseUrl}/categories/${categoryId}/follow`,
-          {
-            method: method,
-            credentials: "include",
-          },
+          { method, credentials: "include" },
         );
         if (response.ok) {
-          if (isFollowing) {
+          if (isFollowing)
             followedCategories = followedCategories.filter(
               (id) => id !== categoryId,
             );
-          } else {
-            followedCategories.push(categoryId);
-          }
+          else followedCategories.push(categoryId);
+
           updateFollowButton();
 
-          // Rafraîchir les salons de chat ou les catégories
-          if (window.loadRooms) {
-            window.loadRooms();
-          }
+          if (window.loadRooms) window.loadRooms();
         }
       } catch (error) {
         console.error("Error toggling follow:", error);
@@ -908,29 +899,22 @@
       fetchFollowedCategories(),
     ]);
     renderFeedGrid();
+    renderCategoriesMarquee();
 
     const searchInput = document.getElementById("event-search");
     let searchValue = "";
-    if (searchInput) {
-      searchValue = searchInput.value;
-    }
+    if (searchInput) searchValue = searchInput.value;
+
     renderEventsGrid(searchValue);
     renderSportCategoriesList();
     updateFollowButton();
     updateAmbientBackdrop(currentSportFilter);
 
-    if (window.currentCategoryDetail) {
+    if (window.currentCategoryDetail)
       window.renderCategoryEvents(window.currentCategoryDetail);
-    }
-    if (window.loadRooms) {
-      window.loadRooms();
-    }
-    if (window.renderCategories) {
-      window.renderCategories();
-    }
-    if (window.loadProfileData) {
-      window.loadProfileData();
-    }
+    if (window.loadRooms) window.loadRooms();
+    if (window.renderCategories) window.renderCategories();
+    if (window.loadProfileData) window.loadProfileData();
   }
   window.refreshAll = refreshAll;
 

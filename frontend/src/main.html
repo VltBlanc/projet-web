@@ -67,12 +67,31 @@
   <main class="main-content">
     <!-- Feed section -->
     <section id="feed" class="content-section active">
-      <div class="page-header">
-        <h2>Fil d'actualité</h2>
-        <p>Découvre les dernières activités de la communauté</p>
+      <!-- Hero Section / Présentation du site -->
+      <div class="hero-section">
+        <h1 class="hero-title enter-1">SportConnect</h1>
+        <p class="hero-subtitle enter-2">Votre plateforme sociale pour organiser, rejoindre et partager des activités sportives en toute simplicité. Rencontrez des passionnés de sport près de chez vous et bougez ensemble !</p>
+        <div class="hero-actions enter-3">
+          <button class="btn-primary hero-btn" onclick="showSection('events')">Explorer les Événements</button>
+        </div>
       </div>
-      <div class="feed-grid" id="feed-grid">
-        <!-- Feed items inserted by JS -->
+
+      <!-- Carrousel défilant des catégories -->
+      <div class="categories-marquee-container enter-3">
+        <h3 class="section-title">Nos Catégories</h3>
+        <div class="categories-marquee">
+          <div class="categories-marquee-track" id="categories-marquee-track">
+            <!-- Inséré dynamiquement par JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Événements tendance -->
+      <div class="trending-section enter-4">
+        <h3 class="section-title">🔥 Activités Tendance</h3>
+        <div class="feed-grid" id="feed-grid">
+          <!-- Populé dynamiquement par JS -->
+        </div>
       </div>
     </section>
 
@@ -80,7 +99,7 @@
     <section id="events" class="content-section">
       <div class="events-layout">
         <!-- Sidebar des catégories pour filtrer les événements -->
-        <aside class="events-categories-sidebar">
+        <aside class="events-categories-sidebar enter-1">
           <h3>Sports</h3>
           <div class="events-categories-list" id="events-categories-list">
             <!-- Inséré dynamiquement par JS -->
@@ -89,18 +108,18 @@
 
         <!-- Contenu principal des événements -->
         <div class="events-main-area">
-          <div class="page-header">
+          <div class="page-header enter-1">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
               <h2 id="events-page-title">Événements sportifs</h2>
               <button id="events-follow-sport-btn" class="btn-primary" style="display: none;"></button>
             </div>
             <p>Rejoins ou crée une séance près de chez toi</p>
           </div>
-          <div class="events-toolbar">
+          <div class="events-toolbar enter-2">
             <input type="text" id="event-search" placeholder="Rechercher un sport, une ville...">
             <button class="btn-primary" id="btn-create-event">+ Créer un événement</button>
           </div>
-          <div class="events-grid" id="events-grid">
+          <div class="events-grid enter-3" id="events-grid">
             <!-- Events inserted by JS -->
           </div>
           <!-- Filigrane de sport décoratif en bas à droite de la grille -->
@@ -114,11 +133,11 @@
     <!-- Categories section -->
     <section id="categories" class="content-section">
       <div id="categories-main">
-        <div class="page-header">
+        <div class="page-header enter-1">
           <h2>Catégories</h2>
           <p>Explore les activités par sport</p>
         </div>
-        <div class="categories-grid" id="categories-grid">
+        <div class="categories-grid enter-2" id="categories-grid">
           <!-- Categories inserted by JS -->
         </div>
       </div>
@@ -143,13 +162,13 @@
     <!-- Chat section -->
     <section id="chat" class="content-section">
       <div class="chat-layout">
-        <div class="chat-sidebar">
+        <div class="chat-sidebar enter-1">
           <h3>Conversations</h3>
           <div class="chat-rooms" id="chat-rooms">
             <div class="chat-loading">Chargement des conversations…</div>
           </div>
         </div>
-        <div class="chat-main">
+        <div class="chat-main enter-2">
           <div class="chat-header">
             <span class="chat-title" id="chat-title">Général</span>
             <span class="chat-status">● En ligne</span>
@@ -162,7 +181,7 @@
             </button>
           </form>
         </div>
-        <div class="chat-users-sidebar">
+        <div class="chat-users-sidebar enter-3">
           <h3>Utilisateurs en ligne</h3>
           <ul id="users-online" class="users-online-list">
             <!-- Populated dynamically -->
@@ -177,14 +196,18 @@
 
         <!-- Carte hero -->
         <div class="profile-card">
-          <div class="profile-banner">
+          <div class="profile-banner enter-1">
             <div class="profile-banner-pattern"></div>
           </div>
           <div class="profile-body">
             <div class="profile-top-row">
               <div class="profile-avatar-wrap">
-                <div class="profile-avatar-large" id="profile-avatar">SC</div>
+                <div class="profile-avatar-large enter-2" id="profile-avatar">SC</div>
                 <span class="profile-avatar-status"></span>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                <h2 class="enter-3">Utilisateur</h2>
+                <span class="profile-role-badge">🏅 Membre SportConnect</span>
               </div>
               <button class="btn-edit-profile" id="btn-edit-profile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -455,7 +478,6 @@
           <button type="submit" class="btn-primary">Créer l'événement</button>
         </div>
       </form>
-    </div>
   </div>
 
   <script src="events/events.js"></script>
