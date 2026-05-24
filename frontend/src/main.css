@@ -2332,6 +2332,44 @@ body,
   font-size: 0.85rem;
 }
 
+.message {
+  position: relative;
+}
+
+.msg-delete-btn {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  background: rgba(0,0,0,0.05);
+  border: none;
+  border-radius: 6px;
+  padding: 0.25rem 0.35rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s, color 0.2s;
+  line-height: 1;
+}
+
+.message:hover .msg-delete-btn {
+  opacity: 1;
+}
+
+.msg-delete-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.message.own .msg-delete-btn {
+  color: rgba(255,255,255,0.6);
+}
+
+.message.own .msg-delete-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
 .admin-badge {
   display: inline-block;
   background: linear-gradient(135deg, #f59e0b, #d97706);

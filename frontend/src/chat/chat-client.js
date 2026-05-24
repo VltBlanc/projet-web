@@ -54,6 +54,7 @@ class ChatClient {
       reconnect: [],      // (attempt) => void
       data_updated: [],   // () => void
       update_users: [],   // (usernames) => void
+      message_deleted: [], // (messageId) => void
     };
   }
 
@@ -243,6 +244,8 @@ class ChatClient {
       this._emit('data_updated');
     } else if (responseData.type === 'update_users') {
       this._emit('update_users', responseData.usernames);
+    } else if (responseData.type === 'message_deleted') {
+      this._emit('message_deleted', responseData.id);
     }
   }
 
