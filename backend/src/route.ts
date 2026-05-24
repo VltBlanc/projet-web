@@ -170,6 +170,25 @@ export async function initDb(): Promise<void> {
       }
       console.log("Seeded", seeds.length, "automatic events.");
     }
+    // ── Default admin user ────────────────────────────────────────────
+    const adminUsername = Deno.env.get("ADMIN_USERNAME");
+    if (adminUsername) {
+      const existingAdmin = await client.queryObject<{ id: number }>(
+        "SELECT id FROM users WHERE name = $1",
+        [adminUsername]
+      );
+      if (existingAdmin.rows.length === 0) {
+        const hashedPassword = await hashPassword(adminUsername);
+        await client.queryArray(
+          "INSERT INTO users (name, password, role) VALUES ($1, $2, 'admin')",
+          [adminUsername, hashedPassword]
+        );
+        console.log(`Default admin user "${adminUsername}" created (password = username).`);
+      } else {
+        console.log(`Admin user "${adminUsername}" already exists, skipping creation.`);
+      }
+    }
+
     console.log("DB schema ready.");
   } finally {
     await client.end();
