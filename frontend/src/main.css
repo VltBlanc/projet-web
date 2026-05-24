@@ -230,7 +230,6 @@ body {
 /* -- Sections -- */
 .content-section {
     display: none;
-    animation: fadeIn 0.3s ease;
 }
 
 .content-section.active {
@@ -2085,8 +2084,6 @@ body,
         transform: none;
     }
 }
-<<<<<<< HEAD
-=======
 
 /* -- Accueil Rework: Hero Section, Categories Marquee, Trending Events -- */
 
@@ -2304,5 +2301,3 @@ body,
   mask-position: center;
   vertical-align: middle;
 }
-
->>>>>>> 0b0e382 (Feat : Theme des evenements et esthétiques de certains logos)

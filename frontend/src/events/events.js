@@ -924,6 +924,7 @@
   window.spawnEmojiBurst = spawnEmojiBurst;
   window.triggerThemeTransition = triggerThemeTransition;
   window.updateAmbientBackdrop = updateAmbientBackdrop;
+  window.allEvents = allEvents;
 
   // ── Initialisation ──
   async function initEvents() {

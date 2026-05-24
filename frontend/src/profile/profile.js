@@ -184,7 +184,7 @@ function renderFilteredEvents() {
 // ── Render: sports tags ────────────────────────────────────
 function renderSportsTags(followed, practiced, container) {
   if (!container) return;
-  const all = new Set([...followed, ...[...practiced]]);
+  const all = new Set([...followed.map(s => s.toLowerCase()), ...practiced]);
   if (all.size === 0) {
     container.innerHTML = '<p class="profile-empty">Aucun sport suivi pour l\'instant.</p>';
     return;

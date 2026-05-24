@@ -38,6 +38,7 @@ class ChatClient {
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
     this.currentRoom = null;
+    this.joinedRooms = new Set();        // Suivi de tous les salons rejoints pour la réinscription
     this._pendingMessages = [];          // Messages en attente envoyés avant l'ouverture du WebSocket
     this._optimisticCounters = new Map(); // Déduplication : hash → compteur pour les rendus optimistes
 
@@ -118,8 +119,12 @@ class ChatClient {
 
       this._emit('connected');
 
-      // Rejoindre à nouveau le salon actuel s'il y en a un
-      if (this.currentRoom) {
+      // Rejoindre à nouveau tous les salons de discussion suivis
+      if (this.joinedRooms.size > 0) {
+        for (const roomSlug of this.joinedRooms) {
+          this._send({ type: 'join_room', room: roomSlug });
+        }
+      } else if (this.currentRoom) {
         this._send({ type: 'join_room', room: this.currentRoom });
       }
     };
@@ -251,6 +256,7 @@ class ChatClient {
   }
 
   joinChannel(roomSlug) {
+    this.joinedRooms.add(roomSlug);
     this._send({ type: 'join_room', room: roomSlug });
   }
 
@@ -323,16 +329,6 @@ class ChatClient {
     }
 
     const trimmed = content.trim();
-
-    // Marquer pour la déduplication afin que l'écho du serveur ne produise pas de doublon
-    let connectionStatus = "buffered::";
-    if (this.ws) {
-      if (this.ws.readyState === WebSocket.OPEN) {
-        connectionStatus = "";
-      }
-    }
-    
-    const hash = this.currentRoom + '::' + connectionStatus + trimmed;
 
     this._send({
       type: 'send_message',
