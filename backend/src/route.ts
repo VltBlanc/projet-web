@@ -562,6 +562,83 @@ router.post("/logout", async (ctx) => {
   ctx.response.body = { message: "Logged out" };
 });
 
+/** POST /change-password  { currentPassword, newPassword }  (auth required) */
+router.post("/change-password", authMiddleware, async (ctx) => {
+  let body: Record<string, unknown> | undefined;
+  try {
+    body = await ctx.request.body.json();
+  } catch {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Invalid JSON body" };
+    return;
+  }
+
+  const { currentPassword, newPassword } = body ?? {};
+
+  if (!currentPassword || !newPassword ||
+      typeof currentPassword !== "string" || typeof newPassword !== "string") {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "currentPassword and newPassword are required" };
+    return;
+  }
+
+  if ((newPassword as string).length < 6) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "New password must be at least 6 characters" };
+    return;
+  }
+
+  const userId = Number(ctx.state.user.sub);
+
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+
+  try {
+    // Fetch current stored hash
+    const result = await client.queryObject<{ password: string }>(
+      "SELECT password FROM users WHERE id = $1",
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "User not found" };
+      return;
+    }
+
+    const storedHash = result.rows[0].password;
+    const valid = await comparePassword(currentPassword as string, storedHash);
+
+    if (!valid) {
+      ctx.response.status = 401;
+      ctx.response.body = { error: "Mot de passe actuel incorrect" };
+      return;
+    }
+
+    // Hash and store the new password
+    const newHash = await hashPassword(newPassword as string);
+    await client.queryArray(
+      "UPDATE users SET password = $1 WHERE id = $2",
+      [newHash, userId]
+    );
+
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Password updated successfully" };
+  } catch (err) {
+    console.error("POST /change-password error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
 /** GET /health  – used by Docker HEALTHCHECK */
 router.get("/health", (ctx) => {
   ctx.response.status = 200;
@@ -1025,6 +1102,19 @@ router.post("/events", authMiddleware, async (ctx) => {
   if (!title || !sport || !location || !event_date || !capacity) {
     ctx.response.status = 400;
     ctx.response.body = { error: "title, sport, location, event_date, capacity are required" };
+    return;
+  }
+
+  // Reject events with a past date
+  const eventDateParsed = new Date(event_date as string);
+  if (isNaN(eventDateParsed.getTime())) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Format de date invalide" };
+    return;
+  }
+  if (eventDateParsed <= new Date()) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "La date de l'événement doit être dans le futur" };
     return;
   }
 
