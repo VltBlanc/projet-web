@@ -421,6 +421,9 @@ async function refreshAll() {
   if (window.renderCategories) {
     window.renderCategories();
   }
+  if (window.loadProfileData) {
+    window.loadProfileData();
+  }
 }
 window.refreshAll = refreshAll;
 
