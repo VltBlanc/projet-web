@@ -73,7 +73,17 @@ function initUserDisplay() {
   const name = localStorage.getItem('currentUser') || 'Utilisateur';
   const initials = name.slice(0, 2).toUpperCase();
 
-  if (elUsername)  elUsername.textContent  = name;
+  if (elUsername) {
+    elUsername.textContent = name;
+    // Ajouter un badge admin si l'utilisateur est admin
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'admin') {
+      const badge = document.createElement('span');
+      badge.className = 'admin-badge';
+      badge.textContent = 'Admin';
+      elUsername.appendChild(badge);
+    }
+  }
   if (elAvatar)    elAvatar.textContent    = initials;
   if (mobileAvatar) mobileAvatar.textContent = initials;
 

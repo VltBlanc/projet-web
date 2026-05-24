@@ -80,6 +80,11 @@
     },
   ];
 
+  // ── Vérifier si l'utilisateur est admin ──
+  function isAdmin() {
+    return localStorage.getItem("userRole") === "admin";
+  }
+
   // ── Fonctions d'aide ──
   function escapeHtml(str) {
     const escapeDiv = document.createElement("div");
@@ -241,6 +246,21 @@
       );
       const iconClass = category ? category.iconClass : "fa fa-futbol-o";
 
+      // Bouton supprimer pour les admins (feed)
+      let feedAdminDeleteHtml = "";
+      if (isAdmin()) {
+        feedAdminDeleteHtml = `<button class="event-btn event-btn-delete feed-delete-btn" data-event-id="${event.id}" title="Supprimer l'événement">🗑️</button>`;
+      }
+
+      let footerActionsHtml = `<button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>`;
+      if (feedAdminDeleteHtml) {
+        footerActionsHtml = `
+        <div style="display:flex; gap: 0.5rem; align-items:center;">
+          ${feedAdminDeleteHtml}
+          <button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>
+        </div>`;
+      }
+
       card.innerHTML = `
       <div class="feed-image ${sportNameLower}">
         <span class="feed-badge">${escapeHtml(event.sport)}</span>
@@ -252,7 +272,7 @@
         <div class="feed-meta">📍 ${escapeHtml(event.location)} &nbsp;•&nbsp; 🕐 ${formatEventDate(event.event_date)}</div>
         <div class="feed-footer">
           <div class="feed-avatars">${avatarsHtml}</div>
-          <button class="${joinButtonClass}" data-event-id="${event.id}">${joinButtonText}</button>
+          ${footerActionsHtml}
         </div>
       </div>`;
 
@@ -336,6 +356,12 @@
     );
     const iconClass = category ? category.iconClass : "fa fa-futbol-o";
 
+    // Bouton supprimer pour les admins
+    let adminDeleteHtml = "";
+    if (isAdmin()) {
+      adminDeleteHtml = `<button class="event-btn event-btn-delete" data-event-id="${event.id}" title="Supprimer l'événement">🗑️ Supprimer</button>`;
+    }
+
     eventDiv.innerHTML = `
     <div class="feed-image ${sportNameLower}">
       <span class="feed-badge">${escapeHtml(event.sport || "")}</span>
@@ -349,7 +375,10 @@
       <div class="event-bar"><div style="width:${Math.min(fillPercent, 100)}%"></div></div>
       <div class="feed-footer">
         <span class="event-spots">${participantsCount}/${event.capacity || 0} inscrits</span>
-        ${actionButtonHtml}
+        <div class="event-actions" style="display:flex; gap:0.5rem; align-items:center;">
+          ${actionButtonHtml}
+          ${adminDeleteHtml}
+        </div>
       </div>
     </div>`;
 
@@ -585,6 +614,25 @@
     }
   }
 
+  // ── Supprimer un événement (admin uniquement) ──
+  async function deleteEvent(eventId) {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible.")) {
+      return;
+    }
+    try {
+      const response = await apiFetch(`/events/${eventId}`, { method: "DELETE" });
+      if (!response) return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error || "Erreur lors de la suppression");
+        return;
+      }
+      await refreshAll();
+    } catch (error) {
+      console.error("Delete event error:", error);
+    }
+  }
+
   // ── Créer un événement ──
   async function createEvent(formData) {
     const errorDiv = document.getElementById("create-event-error");
@@ -722,7 +770,7 @@
     });
   }
 
-  // ── Délégation de clic pour les boutons rejoindre/quitter ──
+  // ── Délégation de clic pour les boutons rejoindre/quitter/supprimer ──
   function initClickHandlers() {
     document.addEventListener("click", async (event) => {
       const joinButton = event.target.closest(".join-btn:not(.joined)");
@@ -740,7 +788,7 @@
       }
 
       const eventJoinButton = event.target.closest(
-        ".event-btn:not(.full):not(.event-btn-leave)",
+        ".event-btn:not(.full):not(.event-btn-leave):not(.event-btn-delete)",
       );
       if (eventJoinButton) {
         if (eventJoinButton.dataset.eventId) {
@@ -754,6 +802,13 @@
       if (leaveButton) {
         const eventId = Number(leaveButton.dataset.eventId);
         if (eventId) await leaveEvent(eventId);
+        return;
+      }
+
+      const deleteButton = event.target.closest(".event-btn-delete");
+      if (deleteButton) {
+        const eventId = Number(deleteButton.dataset.eventId);
+        if (eventId) await deleteEvent(eventId);
         return;
       }
     });

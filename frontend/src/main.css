@@ -2301,3 +2301,47 @@ body,
   mask-position: center;
   vertical-align: middle;
 }
+
+/* -- Admin styles -- */
+.event-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.event-btn-delete {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.event-btn-delete:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  transform: scale(1.02);
+}
+
+.feed-delete-btn {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.admin-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
