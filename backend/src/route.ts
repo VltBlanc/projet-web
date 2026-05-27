@@ -144,16 +144,16 @@ export async function initDb(): Promise<void> {
     if (Number(countResult.rows[0].count) === 0) {
       console.log("Seeding automatic events...");
       const seeds = [
-        { title: "Match de foot 5v5", sport: "Football", location: "Stade Municipal, Lyon", days: 0, hours: 18, capacity: 10 },
-        { title: "Sortie running 10km", sport: "Running", location: "Parc de la Tête d'Or", days: 1, hours: 7, capacity: 12 },
-        { title: "Session musculation", sport: "Musculation", location: "Basic-Fit Villeurbanne", days: 2, hours: 19, capacity: 6 },
-        { title: "Tennis en double", sport: "Tennis", location: "Club de Tennis, Caluire", days: 3, hours: 17, capacity: 4 },
-        { title: "Tournoi inter-quartiers", sport: "Football", location: "Stade de Gerland, Lyon", days: 5, hours: 14, capacity: 12 },
-        { title: "Pick-up game du weekend", sport: "Basket", location: "Gymnase Tony Parker", days: 6, hours: 10, capacity: 10 },
-        { title: "Trail des monts du Lyonnais", sport: "Running", location: "Saint-Priest", days: 12, hours: 8, capacity: 100 },
-        { title: "Yoga en plein air", sport: "Yoga", location: "Parc de la Tête d'Or", days: 7, hours: 9, capacity: 15 },
-        { title: "Initiation bloc", sport: "Escalade", location: "Salle d'escalade L'Orange Bleue", days: 8, hours: 18, capacity: 8 },
-        { title: "Sortie vélo route 80km", sport: "Cyclisme", location: "Place Bellecour", days: 10, hours: 7, capacity: 20 },
+        { title: "Match de foot 5v5", sport: "Football", location: "Stade Richter, Montpellier", days: 0, hours: 18, capacity: 10 },
+        { title: "Sortie running 10km", sport: "Running", location: "Parc de Méric, Montpellier", days: 1, hours: 7, capacity: 12 },
+        { title: "Session musculation", sport: "Musculation", location: "Basic-Fit Montpellier Comédie", days: 2, hours: 19, capacity: 6 },
+        { title: "Tennis en double", sport: "Tennis", location: "Tennis Club de la Jalade, Montpellier", days: 3, hours: 17, capacity: 4 },
+        { title: "Tournoi inter-quartiers", sport: "Football", location: "Stade Philippidès, Montpellier", days: 5, hours: 14, capacity: 12 },
+        { title: "Pick-up game du weekend", sport: "Basket", location: "Gymnase René Bougnol, Montpellier", days: 6, hours: 10, capacity: 10 },
+        { title: "Trail du Pic Saint-Loup", sport: "Running", location: "Saint-Jean-de-Cuculles", days: 12, hours: 8, capacity: 100 },
+        { title: "Yoga en plein air", sport: "Yoga", location: "Jardin des Plantes, Montpellier", days: 7, hours: 9, capacity: 15 },
+        { title: "Initiation bloc", sport: "Escalade", location: "Salle d'escalade Block'Out, Montpellier", days: 8, hours: 18, capacity: 8 },
+        { title: "Sortie vélo route 80km", sport: "Cyclisme", location: "Place de la Comédie, Montpellier", days: 10, hours: 7, capacity: 20 },
       ];
       for (const s of seeds) {
         const result = await client.queryObject<{ id: number }>(

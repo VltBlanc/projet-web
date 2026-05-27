@@ -11,6 +11,12 @@ function showSection(sectionId) {
   if (!incomingSection) return;
   if (incomingSection === outgoingSection) return;
 
+  window.scrollTo({ top: 0 });
+  const mainContent = document.querySelector(".main-content");
+  if (mainContent) {
+    mainContent.scrollTo({ top: 0 });
+  }
+
   // Annuler le timeout existant pour éviter les conflits d'états
   if (window.showSectionTimeout) {
     clearTimeout(window.showSectionTimeout);

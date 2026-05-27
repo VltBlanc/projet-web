@@ -245,6 +245,7 @@
         (c) => c.name.toLowerCase() === sportNameLower,
       );
       const iconClass = category ? category.iconClass : "fa fa-futbol-o";
+      card.dataset.sportId = category ? category.id : "all";
 
       // Bouton supprimer pour les admins (feed)
       let feedAdminDeleteHtml = "";
@@ -465,6 +466,12 @@
   // ── Gestionnaire de Clic sur les Tuiles de Catégorie ──
   function handleCategoryTileClick(event, category) {
     if (currentSportFilter === category.id) return; // Déjà sélectionné
+
+    window.scrollTo({ top: 0 });
+    const mainContent = document.querySelector(".main-content");
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0 });
+    }
 
     const tileElement = event.currentTarget;
     const rect = tileElement.getBoundingClientRect();
@@ -773,6 +780,26 @@
   // ── Délégation de clic pour les boutons rejoindre/quitter/supprimer ──
   function initClickHandlers() {
     document.addEventListener("click", async (event) => {
+      const feedCard = event.target.closest(".feed-card");
+      if (feedCard && !event.target.closest("button")) {
+        const sportId = feedCard.dataset.sportId;
+        if (sportId) {
+          const category = sportsCategories.find((c) => c.id === sportId);
+          if (category) {
+            if (typeof window.showSection === "function") {
+              window.showSection("events");
+            }
+            const mockEvent = {
+              currentTarget: document.querySelector(`[data-category-id="${sportId}"]`) || document.body,
+              clientX: window.innerWidth / 2,
+              clientY: window.innerHeight / 2,
+            };
+            handleCategoryTileClick(mockEvent, category);
+          }
+        }
+        return;
+      }
+
       const joinButton = event.target.closest(".join-btn:not(.joined)");
       if (joinButton) {
         const eventId = Number(joinButton.dataset.eventId);
