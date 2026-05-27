@@ -64,10 +64,11 @@ body {
     justify-content: center;
 }
 
-.sidebar-brand .brand-icon svg {
-    width: 22px;
-    height: 22px;
-    color: #fff;
+.sidebar-brand .brand-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
 }
 
 .brand-text {
@@ -1105,7 +1106,17 @@ body {
 }
 
 .osc-icon {
-    font-size: 1.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    margin-bottom: 0.25rem;
+}
+
+.osc-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 2.2;
 }
 
 .osc-value {
@@ -2097,6 +2108,26 @@ body,
   box-shadow: var(--shadow);
   position: relative;
   overflow: hidden;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('assets/logo.svg') no-repeat center / 350px;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-title,
+.hero-subtitle,
+.hero-actions {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-title {
