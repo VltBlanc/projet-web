@@ -11,12 +11,19 @@ lint-code:
     - deno lint backend/src frontend/front_server.ts
 
 # ── TEST STAGE ──
+test-critical-auth:
+  stage: test
+  image: denoland/deno:alpine
+  script:
+    - cd backend
+    - deno test --allow-read --allow-net --allow-env src/auth.test.ts
+
 test-backend:
   stage: test
   image: denoland/deno:alpine
   script:
     - cd backend
-    - deno test --allow-read --allow-net --allow-env src/*.test.ts
+    - deno test --allow-read --allow-net --allow-env src/route.test.ts
 
 test-frontend:
   stage: test

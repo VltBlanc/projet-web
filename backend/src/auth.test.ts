@@ -45,3 +45,102 @@ Deno.test("Security: Invalid JWT Handling", async () => {
     await verifyAccessToken(invalidToken);
   });
 });
+
+import { Context } from "https://deno.land/x/oak@v17.1.6/mod.ts";
+import { authMiddleware, adminMiddleware } from "./route.ts";
+
+function createMockContext(token: string | null): Context {
+  const cookiesMap = new Map<string, string>();
+  if (token) {
+    cookiesMap.set("access_token", token);
+  }
+  
+  return {
+    cookies: {
+      get: (name: string) => Promise.resolve(cookiesMap.get(name)),
+    },
+    state: {} as Record<string, any>,
+    response: {
+      status: 200,
+      body: null as any,
+    },
+    request: {
+      secure: false,
+    }
+  } as unknown as Context;
+}
+
+Deno.test("Security: authMiddleware with valid token", async () => {
+  const token = await signAccessToken(123, "testuser", "user");
+  const ctx = createMockContext(token);
+  let nextCalled = false;
+  const next = () => {
+    nextCalled = true;
+    return Promise.resolve();
+  };
+
+  await authMiddleware(ctx, next);
+
+  assertEquals(nextCalled, true);
+  assertEquals(ctx.state.user.name, "testuser");
+  assertEquals(ctx.state.user.role, "user");
+});
+
+Deno.test("Security: authMiddleware with no token", async () => {
+  const ctx = createMockContext(null);
+  let nextCalled = false;
+  const next = () => {
+    nextCalled = true;
+    return Promise.resolve();
+  };
+
+  await authMiddleware(ctx, next);
+
+  assertEquals(nextCalled, false);
+  assertEquals(ctx.response.status, 401);
+});
+
+Deno.test("Security: authMiddleware with invalid token", async () => {
+  const ctx = createMockContext("invalid-token-value");
+  let nextCalled = false;
+  const next = () => {
+    nextCalled = true;
+    return Promise.resolve();
+  };
+
+  await authMiddleware(ctx, next);
+
+  assertEquals(nextCalled, false);
+  assertEquals(ctx.response.status, 401);
+});
+
+Deno.test("Security: adminMiddleware with admin user", async () => {
+  const token = await signAccessToken(123, "adminuser", "admin");
+  const ctx = createMockContext(token);
+  let nextCalled = false;
+  const next = () => {
+    nextCalled = true;
+    return Promise.resolve();
+  };
+
+  await adminMiddleware(ctx, next);
+
+  assertEquals(nextCalled, true);
+  assertEquals(ctx.state.user.role, "admin");
+});
+
+Deno.test("Security: adminMiddleware with non-admin user", async () => {
+  const token = await signAccessToken(123, "regularuser", "user");
+  const ctx = createMockContext(token);
+  let nextCalled = false;
+  const next = () => {
+    nextCalled = true;
+    return Promise.resolve();
+  };
+
+  await adminMiddleware(ctx, next);
+
+  assertEquals(nextCalled, false);
+  assertEquals(ctx.response.status, 403);
+});
+
