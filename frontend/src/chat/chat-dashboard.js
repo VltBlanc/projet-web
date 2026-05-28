@@ -125,14 +125,23 @@ function appendMessage(author, text, createdAt, isOwnMessage, messageId) {
     deleteBtnHtml = `<button class="msg-delete-btn" data-message-id="${messageId}" title="Supprimer"><i class="fa fa-trash-o"></i></button>`;
   }
   
-  messageDiv.innerHTML = `${deleteBtnHtml}<div class="msg-author">${escapeHtml(author)}</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeString}</div>`;
+  messageDiv.innerHTML = `${deleteBtnHtml}<div class="msg-author" style="cursor: pointer;">${escapeHtml(author)}</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeString}</div>`;
   chatBox.appendChild(messageDiv);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Gestionnaire de clic pour la suppression de messages (délégation d'événement)
+// Gestionnaire de clic pour le chat (délégation d'événement)
 if (chatBox) {
   chatBox.addEventListener("click", async function (e) {
+    const authorEl = e.target.closest(".msg-author");
+    if (authorEl) {
+      const username = authorEl.textContent.trim();
+      if (window.showPublicProfile) {
+        window.showPublicProfile(username);
+      }
+      return;
+    }
+
     const deleteBtn = e.target.closest(".msg-delete-btn");
     if (!deleteBtn) return;
     
@@ -390,6 +399,12 @@ chat.on("update_users", (usernames) => {
   for (const username of usernames) {
     const listItem = document.createElement("li");
     listItem.textContent = username;
+    listItem.style.cursor = "pointer";
+    listItem.addEventListener("click", () => {
+      if (window.showPublicProfile) {
+        window.showPublicProfile(username);
+      }
+    });
     usersList.appendChild(listItem);
   }
 });
