@@ -99,10 +99,12 @@ function initUserDisplay() {
 // ── Load profile data ─────────────────────────────────────
 async function loadProfileData() {
   try {
-    const [evRes, allEvRes, catRes] = await Promise.all([
+    const name = localStorage.getItem('currentUser') || 'Utilisateur';
+    const [evRes, allEvRes, catRes, profileRes] = await Promise.all([
       fetch(`${API}/my-events`,          { credentials: 'include' }),
       fetch(`${API}/events`,             { credentials: 'include' }),
       fetch(`${API}/categories/followed`,{ credentials: 'include' }),
+      fetch(`${API}/users/${name}/profile`, { credentials: 'include' }),
     ]);
 
     if (evRes.status === 401) { window.location.href = 'login.html'; return; }
@@ -110,6 +112,14 @@ async function loadProfileData() {
     const myEventIds      = evRes.ok      ? await evRes.json()   : [];
     const allEvents       = allEvRes.ok   ? await allEvRes.json(): [];
     const followedCats    = catRes.ok     ? await catRes.json()  : [];
+    
+    if (profileRes.ok) {
+      const profileData = await profileRes.json();
+      currentBio = profileData.bio || 'Passionné de sport et de rencontres. Rejoins-moi pour une session !';
+      localStorage.setItem('profileBio', currentBio);
+      if (elBioDisplay) elBioDisplay.textContent = currentBio;
+      if (elSettingBio) elSettingBio.textContent = currentBio;
+    }
 
     allMyEvents = allEvents.filter(e => myEventIds.map(Number).includes(Number(e.id)));
     const upcoming = allMyEvents.filter(isUpcoming);
@@ -296,8 +306,23 @@ $('edit-profile-modal')?.addEventListener('click', e => {
 });
 
 if (btnSave) {
-  btnSave.addEventListener('click', () => {
+  btnSave.addEventListener('click', async () => {
     const newBio = elEditBio?.value.trim() || '';
+    
+    try {
+      const res = await fetch(`${API}/profile`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: newBio }),
+      });
+      if (!res.ok) {
+        console.error('Erreur lors de la sauvegarde de la biographie sur le serveur');
+      }
+    } catch (err) {
+      console.error('Erreur réseau lors de la sauvegarde de la biographie:', err);
+    }
+
     currentBio = newBio;
     localStorage.setItem('profileBio', newBio);
     if (elBioDisplay)  elBioDisplay.textContent  = newBio || 'Aucune biographie.';
@@ -445,3 +470,72 @@ loadProfileData();
 
 // Re-load when switching to profile tab
 window.loadProfileData = loadProfileData;
+
+// ── Public Profile Modal ──────────────────────────────────
+async function showPublicProfile(username) {
+  if (!username) return;
+  try {
+    const res = await fetch(`${API}/users/${username}/profile`, { credentials: 'include' });
+    if (!res.ok) {
+      console.error('Impossible de charger le profil public de', username);
+      return;
+    }
+    const profile = await res.json();
+    
+    // Remplir les informations
+    const elViewAvatar = $('view-profile-avatar');
+    const elViewUsername = $('view-profile-username');
+    const elViewRole = $('view-profile-role');
+    const elViewBio = $('view-profile-bio');
+    const elViewStatEvents = $('view-profile-stat-events');
+    const elViewStatSports = $('view-profile-stat-sports');
+    
+    if (elViewAvatar) {
+      elViewAvatar.textContent = username.slice(0, 2).toUpperCase();
+    }
+    if (elViewUsername) {
+      elViewUsername.textContent = username;
+    }
+    if (elViewRole) {
+      elViewRole.textContent = profile.role === 'admin' ? 'Administrateur' : 'Membre SportConnect';
+      elViewRole.className = profile.role === 'admin' ? 'profile-role-badge admin' : 'profile-role-badge';
+      // Style dynamic badge
+      if (profile.role === 'admin') {
+        elViewRole.style.background = '#ef4444';
+        elViewRole.style.color = '#fff';
+      } else {
+        elViewRole.style.background = '';
+        elViewRole.style.color = '';
+      }
+    }
+    if (elViewBio) {
+      elViewBio.textContent = profile.bio || 'Aucune biographie.';
+    }
+    if (elViewStatEvents) {
+      elViewStatEvents.textContent = profile.stats.eventsCount;
+    }
+    if (elViewStatSports) {
+      elViewStatSports.textContent = profile.stats.categoriesCount;
+    }
+    
+    const modal = $('view-profile-modal');
+    if (modal) modal.classList.add('active');
+  } catch (err) {
+    console.error('Erreur lors du chargement du profil public:', err);
+  }
+}
+
+function closeViewProfileModal() {
+  const modal = $('view-profile-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+// Bind closing events
+$('view-profile-close')?.addEventListener('click', closeViewProfileModal);
+$('view-profile-close-btn')?.addEventListener('click', closeViewProfileModal);
+$('view-profile-modal')?.addEventListener('click', e => {
+  if (e.target === $('view-profile-modal')) closeViewProfileModal();
+});
+
+// Exposer globalement
+window.showPublicProfile = showPublicProfile;

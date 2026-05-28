@@ -439,6 +439,7 @@
           </div>
         </div>
       </div>
+
     </section>
   </main>
 
@@ -506,6 +507,44 @@
           <button type="submit" class="btn-primary">Créer l'événement</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ── Modal : Voir le profil ── -->
+  <div class="modal-overlay" id="view-profile-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Profil de l'utilisateur</h3>
+        <button class="modal-close" id="view-profile-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-avatar-preview" style="margin-bottom: 1.5rem;">
+          <div class="profile-avatar-large" id="view-profile-avatar">SC</div>
+          <h3 id="view-profile-username" style="margin-top: 0.5rem; margin-bottom: 0.25rem;">Utilisateur</h3>
+          <span class="profile-role-badge" id="view-profile-role" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; padding: 0.25rem 0.75rem;">
+            Membre
+          </span>
+        </div>
+        <div class="form-group">
+          <label style="font-weight: 600;">Biographie</label>
+          <div id="view-profile-bio" style="background: var(--bg); padding: 1rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; color: var(--text); border: 1px solid var(--border); min-height: 50px; white-space: pre-wrap;">Aucune biographie.</div>
+        </div>
+        
+        <div class="profile-stats" style="margin-top: 1.5rem; justify-content: space-around; background: var(--bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+          <div class="stat">
+            <span class="stat-value" id="view-profile-stat-events">0</span>
+            <span class="stat-label" style="font-size: 0.75rem;">Événements</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="view-profile-stat-sports">0</span>
+            <span class="stat-label" style="font-size: 0.75rem;">Sports suivis</span>
+          </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 1.5rem;">
+          <button class="btn-primary" id="view-profile-close-btn" style="width: 100%;">Fermer</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="events/events.js"></script>

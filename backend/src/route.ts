@@ -54,6 +54,10 @@ export async function initDb(): Promise<void> {
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user'
     `);
+    await client.queryArray(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS bio TEXT
+    `);
     // ── Messaging system ─────────────────────────────────────────────────
     await client.queryArray(`
       CREATE TABLE IF NOT EXISTS rooms (
@@ -651,6 +655,110 @@ router.post("/change-password", authMiddleware, async (ctx) => {
     ctx.response.body = { message: "Password updated successfully" };
   } catch (err) {
     console.error("POST /change-password error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** POST /profile – update biography of logged user */
+router.post("/profile", authMiddleware, async (ctx) => {
+  let body: Record<string, unknown> | undefined;
+  try {
+    body = await ctx.request.body.json();
+  } catch {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Invalid JSON body" };
+    return;
+  }
+  const { bio } = body ?? {};
+  if (typeof bio !== "string") {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "bio must be a string" };
+    return;
+  }
+
+  const userId = Number((ctx.state as Record<string, Record<string, string>>).user.sub);
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    await client.queryArray(
+      "UPDATE users SET bio = $1 WHERE id = $2",
+      [bio, userId]
+    );
+    ctx.response.status = 200;
+    ctx.response.body = { message: "Profile updated successfully" };
+  } catch (err) {
+    console.error("POST /profile error:", err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+  } finally {
+    await client.end();
+  }
+});
+
+/** GET /users/:username/profile – get public profile information */
+router.get("/users/:username/profile", authMiddleware, async (ctx) => {
+  const username = ctx.params.username;
+  let client: Client;
+  try {
+    client = await getClient();
+  } catch {
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal server error" };
+    return;
+  }
+  try {
+    // 1. Get user details
+    const userResult = await client.queryObject<{
+      id: number;
+      name: string;
+      role: string;
+      bio: string | null;
+    }>(
+      "SELECT id, name, role, bio FROM users WHERE name = $1",
+      [username]
+    );
+
+    if (userResult.rows.length === 0) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "User not found" };
+      return;
+    }
+
+    const user = userResult.rows[0];
+
+    // 2. Count joined events
+    const eventsResult = await client.queryObject<{ count: string }>(
+      "SELECT COUNT(*) as count FROM event_participants WHERE user_id = $1",
+      [user.id]
+    );
+
+    // 3. Count followed categories
+    const categoriesResult = await client.queryObject<{ count: string }>(
+      "SELECT COUNT(*) as count FROM user_categories WHERE user_id = $1",
+      [user.id]
+    );
+
+    ctx.response.status = 200;
+    ctx.response.body = {
+      username: user.name,
+      role: user.role,
+      bio: user.bio ?? "",
+      stats: {
+        eventsCount: Number(eventsResult.rows[0].count),
+        categoriesCount: Number(categoriesResult.rows[0].count)
+      }
+    };
+  } catch (err) {
+    console.error("GET /users/:username/profile error:", err);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   } finally {
