@@ -59,10 +59,10 @@ function createMockContext(token: string | null): Context {
     cookies: {
       get: (name: string) => Promise.resolve(cookiesMap.get(name)),
     },
-    state: {} as Record<string, any>,
+    state: {} as Record<string, unknown>,
     response: {
       status: 200,
-      body: null as any,
+      body: null as unknown,
     },
     request: {
       secure: false,
