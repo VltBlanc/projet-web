@@ -16,9 +16,6 @@ services:
     build: ./backend
     ports:
       - "8081:8081"
-    volumes:
-      - ./certs:/app/certs:ro
-    command: ["run", "--no-lock", "--allow-net", "--allow-read", "--allow-env", "src/back_server.ts", "8081", "certs/cert.pem", "certs/key.pem"]
     environment:
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
@@ -43,9 +40,6 @@ services:
     build: ./frontend
     ports:
       - "8080:8080"
-    volumes:
-      - ./certs:/app/certs:ro
-    command: ["run", "--no-lock", "--allow-net", "--allow-read", "front_server.ts", "8080", "certs/cert.pem", "certs/key.pem"]
     depends_on:
       backend:
           condition: service_healthy
