@@ -7,10 +7,7 @@ const logoutButton = document.getElementById("logout");
 
 if (logoutButton) {
   logoutButton.addEventListener("click", async () => {
-    let restHost = `http://${location.hostname}:8081`;
-    if (location.hostname === "localhost") {
-      restHost = "http://localhost:8081";
-    }
+    let restHost = location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "http://localhost:8081" : "/api";
     try {
       await fetch(`${restHost}/logout`, {
         method: "POST",

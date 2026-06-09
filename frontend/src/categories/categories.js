@@ -19,10 +19,7 @@
   const followCategoryButton = document.getElementById("btn-follow-category");
 
   let followedCategories = [];
-  let globalRestHost = `http://${location.hostname}:8081`;
-  if (location.hostname === "localhost") {
-    globalRestHost = "http://localhost:8081";
-  }
+  let globalRestHost = location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "http://localhost:8081" : "/api";
 
   // Récupérer la liste des catégories suivies
   async function fetchFollowedCategories() {

@@ -5,20 +5,13 @@ if (!currentUser) {
   currentUser = 'Moi';
 }
 
-let wsProtocol = 'ws:';
-if (location.protocol === 'https:') {
-  wsProtocol = 'wss:';
-}
-
-let wsHost = `${location.hostname}:8081`;
-if (location.hostname === 'localhost') {
+let wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+let wsHost = location.protocol === 'https:' ? location.host : `${location.hostname}:8081`;
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
   wsHost = 'localhost:8081';
 }
 
-let restHost = `http://${location.hostname}:8081`;
-if (location.hostname === 'localhost') {
-  restHost = 'http://localhost:8081';
-}
+let restHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'http://localhost:8081' : '/api';
 
 const chat = new ChatClient({
   wsUrl: `${wsProtocol}//${wsHost}/ws`,

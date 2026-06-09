@@ -64,10 +64,7 @@ if (loginButton) {
       return;
     }
 
-    let restHost = `http://${location.hostname}:8081`;
-    if (location.hostname === "localhost") {
-      restHost = "http://localhost:8081";
-    }
+    let restHost = location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "http://localhost:8081" : "/api";
 
     try {
       const response = await fetch(`${restHost}/login`, {
@@ -119,10 +116,7 @@ if (registerButton) {
       return;
     }
 
-    let restHost = `http://${location.hostname}:8081`;
-    if (location.hostname === "localhost") {
-      restHost = "http://localhost:8081";
-    }
+    let restHost = location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "http://localhost:8081" : "/api";
 
     try {
       const response = await fetch(`${restHost}/register`, {
