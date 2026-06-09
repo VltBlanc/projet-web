@@ -24,7 +24,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - REFRESH_SECRET=${REFRESH_SECRET}
       - PEPPER=${PEPPER}
-      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:8082}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:8080}
       - ADMIN_USERNAME=${ADMIN_USERNAME}
     healthcheck:
             test: ["CMD", "deno", "eval", "Deno.connect({port: 8081})"]
@@ -39,7 +39,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "8082:8080"
+      - "8080:8080"
     depends_on:
       backend:
           condition: service_healthy

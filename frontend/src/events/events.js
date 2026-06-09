@@ -3,7 +3,10 @@
   // Gère : la récupération, l'affichage, la création, l'inscription/désinscription aux événements
   // et la mise à jour des salons de discussion dans la barre latérale
 
-  let apiBaseUrl = location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "http://localhost:8081" : "/api";
+  let apiBaseUrl = `http://${location.hostname}:8081`;
+  if (location.hostname === "localhost") {
+    apiBaseUrl = "http://localhost:8081";
+  }
 
   // ── État ──
   let allEvents = [];

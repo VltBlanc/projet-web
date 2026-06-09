@@ -2,7 +2,10 @@
 //  SportConnect – Profile Module
 // ══════════════════════════════════════════════════════════
 
-const API = location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "http://localhost:8081" : "/api";
+const API = (() => {
+  const h = location.hostname;
+  return h === 'localhost' ? 'http://localhost:8081' : `http://${h}:8081`;
+})();
 
 // ── DOM refs ──────────────────────────────────────────────
 const $ = id => document.getElementById(id);
